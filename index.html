@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Closings Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/topojson/3.0.2/topojson.min.js"></script>
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
+         margin: 0; padding: 0; background: #f7f7f5; color: #1a1a1a; line-height: 1.5; }
+  .container { max-width: 1280px; margin: 0 auto; padding: 28px 24px 48px; }
+  header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px; flex-wrap: wrap; gap: 8px; }
+  h1 { font-size: 26px; font-weight: 500; margin: 0; }
+  .subtitle { color: #666; font-size: 14px; margin: 4px 0 24px; }
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 24px; }
+  .stat { background: #fff; border-radius: 10px; padding: 14px 16px; border: 1px solid #ececec; }
+  .stat .lbl { font-size: 12px; color: #666; text-transform: uppercase; letter-spacing: 0.04em; }
+  .stat .val { font-size: 26px; font-weight: 500; margin-top: 4px; font-variant-numeric: tabular-nums; }
+  .stat .sub { font-size: 11px; color: #888; margin-top: 2px; }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .grid-3 { display: grid; grid-template-columns: 2fr 1fr; gap: 16px; }
+  .card { background: #fff; border-radius: 10px; padding: 18px 20px; border: 1px solid #ececec; margin-bottom: 16px; }
+  .card h2 { font-size: 16px; font-weight: 500; margin: 0 0 4px; }
+  .card h2 .muted { color: #888; font-weight: 400; font-size: 14px; margin-left: 6px; }
+  .card .hint { font-size: 12px; color: #888; margin: 0 0 12px; }
+  .chart-wrap { position: relative; width: 100%; }
+  .chart-wrap.h-280 { height: 280px; }
+  .chart-wrap.h-340 { height: 340px; }
+  .chart-wrap.h-420 { height: 420px; }
+  .chart-wrap.h-500 { height: 500px; }
+  table { border-collapse: collapse; width: 100%; font-size: 13px; }
+  th, td { padding: 7px 10px; text-align: left; border-bottom: 1px solid #f0f0f0; }
+  th { background: #fafafa; font-weight: 500; color: #555; font-size: 11px;
+        text-transform: uppercase; letter-spacing: 0.04em; }
+  td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .filter-row { display: flex; gap: 12px; align-items: center; margin-bottom: 12px; flex-wrap: wrap; }
+  .filter-row label { font-size: 12px; color: #666; }
+  select { font-size: 13px; padding: 6px 10px; border: 1px solid #d8d8d4; border-radius: 6px;
+            background: #fff; cursor: pointer; min-width: 120px; }
+  select:focus { outline: 2px solid #378ADD; outline-offset: -1px; }
+  .pill-list { display: flex; flex-wrap: wrap; gap: 6px; }
+  .pill { font-size: 12px; padding: 3px 9px; border-radius: 999px; }
+  .p-tx { background: #E1F5EE; color: #085041; }
+  .p-wf { background: #EEEDFE; color: #3C3489; }
+  .p-tpl { background: #FAEEDA; color: #633806; }
+  .legend { display: flex; flex-wrap: wrap; gap: 12px; font-size: 11px; color: #666; margin-bottom: 6px; }
+  .legend span.swatch { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: -1px; }
+  .state-detail-block { margin-top: 14px; }
+  .state-detail-block h3 { font-size: 12px; font-weight: 500; margin: 8px 0 4px; color: #555; text-transform: uppercase; letter-spacing: 0.04em; }
+  .state-row { display: grid; grid-template-columns: 1fr 60px; padding: 3px 0; font-size: 13px; border-bottom: 1px solid #f5f5f3; }
+  .state-row span:last-child { text-align: right; color: #555; font-variant-numeric: tabular-nums; }
+  @media (max-width: 900px) {
+    .grid-2, .grid-3 { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+<header>
+  <h1>Closings dashboard</h1>
+  <span class="subtitle">Generated May 18, 2026 · 429 closed files · Jan 2025 – Apr 2026</span>
+</header>
+
+<div class="stats">
+  <div class="stat"><div class="lbl">Closed files</div><div class="val">429</div><div class="sub">across 4 agencies, 36 states</div></div>
+  <div class="stat"><div class="lbl">Avg closings / month</div><div class="val">26.8</div><div class="sub">over 16 months</div></div>
+  <div class="stat"><div class="lbl">Active employees</div><div class="val">21</div><div class="sub">7 distinct roles</div></div>
+  <div class="stat"><div class="lbl">Open pipeline</div><div class="val">298</div><div class="sub">files in-flight</div></div>
+</div>
+
+<div class="card">
+  <h2>Monthly closings <span class="muted">stacked by agency</span></h2>
+  <p class="hint">Closing volume by month — Jan 2025 through Apr 2026. ARES dominates monthly throughput.</p>
+  <div class="legend" id="agency-legend"></div>
+  <div class="chart-wrap h-340"><canvas id="monthlyChart"></canvas></div>
+</div>
+
+<div class="grid-2">
+  <div class="card">
+    <h2>Closings by agency</h2>
+    <p class="hint">Total closed files and monthly average per agency.</p>
+    <div class="chart-wrap h-280"><canvas id="agencyChart"></canvas></div>
+  </div>
+  <div class="card">
+    <h2>Top 15 states <span class="muted">by closing volume</span></h2>
+    <div class="chart-wrap h-420"><canvas id="stateChart"></canvas></div>
+  </div>
+</div>
+
+<div class="card">
+  <h2>State playbook — transaction types, workflows & templates</h2>
+  <p class="hint">Pick a state to see what kinds of files actually close there.</p>
+  <div class="filter-row">
+    <label for="stateSelect">State:</label>
+    <select id="stateSelect"></select>
+    <span id="stateStats" style="font-size: 13px; color: #555;"></span>
+  </div>
+  <div class="grid-2" id="stateDetails"></div>
+</div>
+
+<div class="card">
+  <h2>Employee workload <span class="muted">across roles</span></h2>
+  <p class="hint">Closed-file involvement per person. Many people work in multiple roles, so totals reflect every role-file pairing (e.g., being both Order Opener and File Closer on a file counts twice).</p>
+  <div class="filter-row">
+    <label for="roleSelect">Role:</label>
+    <select id="roleSelect">
+      <option value="all">All roles (total involvement)</option>
+      <option value="Order Opener">Order Opener</option>
+      <option value="File Closer">File Closer</option>
+      <option value="Escrow Officer">Escrow Officer</option>
+      <option value="CD Settlement Contact">CD Settlement Contact</option>
+      <option value="Title Review">Title Review</option>
+      <option value="Assistant">Assistant</option>
+      <option value="Settlement Closing">Settlement Closing</option>
+    </select>
+  </div>
+  <div class="chart-wrap h-500"><canvas id="employeeChart"></canvas></div>
+</div>
+
+<div class="card">
+  <h2>Employee × role matrix</h2>
+  <p class="hint">Who does what. Top 12 employees by total involvement, showing how their closed-file work splits across roles.</p>
+  <div style="overflow-x: auto;">
+    <table id="matrixTable"></table>
+  </div>
+</div>
+
+</div>
+
+<script>
+const DATA = {"months": ["2025-01", "2025-02", "2025-03", "2025-04", "2025-05", "2025-06", "2025-07", "2025-08", "2025-09", "2025-10", "2025-11", "2025-12", "2026-01", "2026-02", "2026-03", "2026-04"], "monthly_total": [28, 25, 29, 39, 41, 33, 25, 25, 27, 29, 16, 44, 21, 19, 17, 11], "monthly_by_agency": {"ARES": [25, 22, 19, 25, 32, 29, 21, 16, 25, 25, 11, 39, 14, 18, 14, 10], "Appellate Land Svcs": [2, 1, 10, 9, 7, 4, 2, 5, 2, 4, 4, 3, 3, 1, 1, 1], "KDFM CT": [0, 2, 0, 4, 2, 0, 2, 4, 0, 0, 1, 2, 4, 0, 2, 0], "Texas (ANT)": [1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]}, "agencies": ["ARES", "Appellate Land Svcs", "KDFM CT", "Texas (ANT)"], "state_patterns": {"FL": {"total": 76, "months": 14, "avg": 5.43, "tx": {"Refinance": 31, "Title Search Only": 16, "ARES-FL-Refinance": 11, "ARES-FL Purchase": 8, "Purchase": 5}, "wf": {"ARES - REFI": 41, "REO - Title Only": 16, "ARES - Standard Purchase": 12, "Refinance": 4, "Purchase": 1}, "tpl": {"727 - QMS": 18, "GOVT": 9, "ARES - FL - Purchase": 5, "727 - XOME": 1}}, "NJ": {"total": 50, "months": 15, "avg": 3.33, "tx": {"Refinance": 35, "Purchase": 12, "Accounting": 1, "Co-Op Purchase": 1, "Reverse": 1}, "wf": {"BLANK - ADD TASKS": 30, "Purchase /Refi - NJ": 8, "Refinance": 6, "ANT - Purchase /Refi - NJ": 4, "Reverse Refinance": 1}, "tpl": {"NJ - Refi - Lisa": 21, "NJ - PUR - Lisa": 8, "Purchase - NJ": 3, "NJ - Reverse": 1}}, "TX": {"total": 48, "months": 14, "avg": 3.43, "tx": {"Purchase": 33, "Title Search Only": 15}, "wf": {"REO - BTC Coordination": 31, "REO - Title Only": 15, "REO - CASH": 2}, "tpl": {"727 - XOME - TX (TITLE CLEARING)": 33, "GOVT": 15}}, "GA": {"total": 31, "months": 11, "avg": 2.82, "tx": {"Purchase": 28, "Refinance": 2, "ARES-GA & MA-Refinance": 1}, "wf": {"Purchase - Co Op": 20, "REO - CASH": 5, "Purchase": 2, "ARES - REFI": 2, "REO - BTC Coordination": 1}, "tpl": {"727 - THURBER (SEARCH ONLY)": 20, "727 - XOME - GA & NC (Thurber)": 6, "727 - Thurber Law": 3}}, "PA": {"total": 27, "months": 13, "avg": 2.08, "tx": {"Purchase": 11, "ARES-PA-Refinance": 7, "Refinance": 6, "ARES-PA-Purchase": 2, "Reverse": 1}, "wf": {"ARES - REFI": 14, "REO - CASH": 10, "ARES - Standard Purchase": 2, "REO - LENDER": 1}, "tpl": {"727 - XOME - PA": 11}}, "CT": {"total": 23, "months": 9, "avg": 2.56, "tx": {"KAP-CT-Refinance": 18, "Refinance": 2, "KAP-CT-Purchase": 2, "Reverse": 1}, "wf": {"ARES - REFI": 21, "ARES - Standard Purchase": 1, "ARES - Commercial Purchase": 1}, "tpl": {"KDFR -CT - Priority - Refi": 7}}, "IL": {"total": 21, "months": 11, "avg": 1.91, "tx": {"Purchase": 21}, "wf": {"Foreclosure": 12, "REO - BTC Coordination": 9}, "tpl": {"727 - XOME - IL (GINALI)": 20, "727 - XOME": 1}}, "MI": {"total": 19, "months": 10, "avg": 1.9, "tx": {"Purchase": 13, "Title Search Only": 5, "Refinance": 1}, "wf": {"REO - CASH": 11, "REO - Title Only": 5, "ARES - Standard Purchase": 2, "ARES - REFI": 1}, "tpl": {"727 - XOME - MI": 11, "GOVT": 5}}, "NC": {"total": 16, "months": 11, "avg": 1.45, "tx": {"Purchase": 5, "ARES-NC-Refinance": 5, "Refinance": 4, "Title Search Only": 1, "Accounting": 1}, "wf": {"ARES - REFI": 9, "REO - CASH": 5, "BLANK - ADD TASKS": 1, "ARES - Commercial Purchase": 1}, "tpl": {"727 - XOME - GA & NC (Thurber)": 3, "727 - XOME": 1, "727 - Thurber Law": 1}}, "OH": {"total": 13, "months": 7, "avg": 1.86, "tx": {"Purchase": 5, "Refinance": 5, "Title Search Only": 3}, "wf": {"ARES - REFI": 5, "REO - CASH": 4, "REO - Title Only": 3, "ARES - Standard Purchase": 1}, "tpl": {"727 - XOME - OH": 4, "GOVT": 3}}, "MO": {"total": 11, "months": 7, "avg": 1.57, "tx": {"Purchase": 11}, "wf": {"REO - CASH": 10, "REO - BTC Coordination": 1}, "tpl": {"727 - XOME": 10, "727 - XOME - BTC": 1}}, "NY": {"total": 9, "months": 7, "avg": 1.29, "tx": {"Purchase": 9}, "wf": {"REO - BTC Coordination": 7, "REO - CASH": 2}, "tpl": {"727 - XOME - NY (BLOCK)": 9}}, "MS": {"total": 8, "months": 6, "avg": 1.33, "tx": {"Purchase": 8}, "wf": {"REO - CASH": 8}, "tpl": {"727 - XOME": 8}}, "SC": {"total": 7, "months": 4, "avg": 1.75, "tx": {"Refinance": 3, "Purchase": 2, "ARES-SC & VT- Commercial Purchase": 1, "ARES-SC & VT-Refinance": 1}, "wf": {"ARES - REFI": 3, "REO - BTC Coordination": 2, "ARES - Commercial Purchase": 1, "ARES - Commercial Refinance": 1}, "tpl": {"727 - XOME": 2}}, "MD": {"total": 7, "months": 5, "avg": 1.4, "tx": {"Purchase": 4, "Refinance": 3}, "wf": {"ARES - REFI": 3, "ARES - Standard Purchase": 2, "REO - CASH": 1, "REO - LENDER": 1}, "tpl": {"727 - XOME - MD": 2}}, "IN": {"total": 6, "months": 6, "avg": 1.0, "tx": {"Purchase": 5, "Refinance": 1}, "wf": {"REO - CASH": 5, "ARES - REFI": 1}, "tpl": {"727 - XOME - IN": 4, "727 - XOME": 1}}, "VA": {"total": 5, "months": 5, "avg": 1.0, "tx": {"Refinance": 4, "Purchase": 1}, "wf": {"ARES - REFI": 4, "REO - CASH": 1}, "tpl": {"727 - XOME": 1}}, "OK": {"total": 5, "months": 4, "avg": 1.25, "tx": {"Purchase": 5}, "wf": {"REO - BTC Coordination": 3, "REO - CASH": 2}, "tpl": {"727 - XOME - OK (TITLE CLEARING)": 4, "727 - XOME": 1}}, "KY": {"total": 5, "months": 5, "avg": 1.0, "tx": {"Refinance": 3, "Purchase": 2}, "wf": {"ARES - REFI": 3, "ARES - Standard Purchase": 2}, "tpl": {}}, "AL": {"total": 4, "months": 4, "avg": 1.0, "tx": {"Purchase": 4}, "wf": {"REO - BTC Coordination": 3, "Foreclosure": 1}, "tpl": {"727 - XOME - AL (TITLE CLEARING)": 3, "727 - XOME": 1}}, "LA": {"total": 4, "months": 4, "avg": 1.0, "tx": {"Purchase": 4}, "wf": {"REO - BTC Coordination": 3, "Foreclosure": 1}, "tpl": {"727 - XOME - BTC": 2, "727 - XOME": 2}}, "KS": {"total": 4, "months": 3, "avg": 1.33, "tx": {"Purchase": 4}, "wf": {"REO - BTC Coordination": 3, "Foreclosure": 1}, "tpl": {"727 - XOME": 4}}, "AZ": {"total": 4, "months": 4, "avg": 1.0, "tx": {"Purchase": 4}, "wf": {"REO - BTC Coordination": 4}, "tpl": {"727 - XOME - AZ (TITLE CLEARING)": 3, "727 - XOME": 1}}, "WV": {"total": 4, "months": 3, "avg": 1.33, "tx": {"Purchase": 4}, "wf": {"REO - BTC Coordination": 3, "REO - CASH": 1}, "tpl": {"727 - XOME": 3, "MY NEXT BID": 1}}, "VT": {"total": 3, "months": 3, "avg": 1.0, "tx": {"Refinance": 3}, "wf": {"ARES - REFI": 3}, "tpl": {}}, "AR": {"total": 3, "months": 3, "avg": 1.0, "tx": {"Purchase": 3}, "wf": {"REO - BTC Coordination": 2, "Foreclosure": 1}, "tpl": {"727 - XOME": 2, "727 - XOME - BTC": 1}}, "MT": {"total": 3, "months": 2, "avg": 1.5, "tx": {"Purchase": 3}, "wf": {"ARES - Standard Purchase": 2, "REO - CASH": 1}, "tpl": {"727 - XOME": 1}}, "CA": {"total": 2, "months": 2, "avg": 1.0, "tx": {"Purchase": 2}, "wf": {"REO - BTC Coordination": 2}, "tpl": {"727 - XOME": 1, "727 - XOME - BTC": 1}}, "WI": {"total": 2, "months": 2, "avg": 1.0, "tx": {"Purchase": 2}, "wf": {"REO - CASH": 2}, "tpl": {"727 - XOME": 2}}, "MA": {"total": 2, "months": 2, "avg": 1.0, "tx": {"Refinance": 2}, "wf": {"ARES - REFI": 2}, "tpl": {}}, "CO": {"total": 2, "months": 2, "avg": 1.0, "tx": {"Title Search Only": 1, "Refinance": 1}, "wf": {"REO - Title Only": 1, "ARES - REFI": 1}, "tpl": {"GOVT": 1}}, "DC": {"total": 1, "months": 1, "avg": 1.0, "tx": {"Purchase": 1}, "wf": {"REO - CASH": 1}, "tpl": {"727 - XOME": 1}}, "ME": {"total": 1, "months": 1, "avg": 1.0, "tx": {"Refinance": 1}, "wf": {"ARES - REFI": 1}, "tpl": {}}, "RI": {"total": 1, "months": 1, "avg": 1.0, "tx": {"Refinance": 1}, "wf": {"ARES - REFI": 1}, "tpl": {}}, "TN": {"total": 1, "months": 1, "avg": 1.0, "tx": {"Purchase": 1}, "wf": {"Purchase": 1}, "tpl": {}}, "WY": {"total": 1, "months": 1, "avg": 1.0, "tx": {"Purchase": 1}, "wf": {"REO - BTC Coordination": 1}, "tpl": {"727 - XOME": 1}}}, "employee_role": {"Order Opener": {"Chanda Johnson": 157, "Nikki Teague": 70, "Erin Wynne": 52, "Heidi Gemeling": 45, "Lisa M. Davis": 42, "Rebecca Wood": 33, "Christina Fritsch": 14, "Samantha Crane": 7, "Amanda Rose O'Neill": 2, "Michael Bilbao": 2, "Stephanie Grimm": 1, "Bonny Oh": 1, "Jada White": 1}, "File Closer": {"Nikki Teague": 196, "Lisa M. Davis": 135, "Rebecca Wood": 45, "Stephanie Grimm": 17, "Magan Whitaker": 5, "Jennifer Beuter": 4, "Michael Bilbao": 1}, "Escrow Officer": {"Lisa M. Davis": 71, "Rebecca Wood": 4, "Jennifer Beuter": 3, "Nikki Teague": 2}, "CD Settlement Contact": {"Nikki Teague": 167, "Lisa M. Davis": 64, "Christina Fritsch": 13, "Rebecca Wood": 12, "Michael Bilbao": 2, "Krystal Bissoon": 1}, "Title Review": {"Nikki Teague": 131, "Heidi Gemeling": 115, "Rebecca Wood": 12, "Lisa M. Davis": 6, "Connie Powers": 6, "Susan B Hart": 5, "Magan Whitaker": 2, "Lori Shapiro": 2}, "Assistant": {"Marie Elaina Melman": 230, "Chanda Johnson": 196, "Samantha Crane": 13, "Helen Fucile": 7, "Heidi Gemeling": 6, "Stephanie Grimm": 1}, "Settlement Closing": {"Lisa M. Davis": 46, "Rebecca Wood": 17, "Nikki Teague": 6, "Christina Fritsch": 1}}, "employee_totals": {"Nikki Teague": {"total": 572, "months": 16, "avg": 35.8}, "Lisa M. Davis": {"total": 364, "months": 16, "avg": 22.8}, "Chanda Johnson": {"total": 353, "months": 16, "avg": 22.1}, "Marie Elaina Melman": {"total": 230, "months": 16, "avg": 14.4}, "Heidi Gemeling": {"total": 166, "months": 16, "avg": 10.4}, "Rebecca Wood": {"total": 123, "months": 11, "avg": 11.2}, "Erin Wynne": {"total": 52, "months": 9, "avg": 5.8}, "Christina Fritsch": {"total": 28, "months": 8, "avg": 3.5}, "Samantha Crane": {"total": 20, "months": 4, "avg": 5.0}, "Stephanie Grimm": {"total": 19, "months": 3, "avg": 6.3}, "Helen Fucile": {"total": 7, "months": 7, "avg": 1.0}, "Jennifer Beuter": {"total": 7, "months": 2, "avg": 3.5}, "Magan Whitaker": {"total": 7, "months": 3, "avg": 2.3}, "Connie Powers": {"total": 6, "months": 6, "avg": 1.0}, "Michael Bilbao": {"total": 5, "months": 3, "avg": 1.7}, "Susan B Hart": {"total": 5, "months": 4, "avg": 1.2}, "Amanda Rose O'Neill": {"total": 2, "months": 2, "avg": 1.0}, "Lori Shapiro": {"total": 2, "months": 1, "avg": 2.0}, "Bonny Oh": {"total": 1, "months": 1, "avg": 1.0}, "Krystal Bissoon": {"total": 1, "months": 1, "avg": 1.0}, "Jada White": {"total": 1, "months": 1, "avg": 1.0}}};
+const AGENCY_COLORS = {
+  'ARES': '#378ADD',
+  'Appellate Land Svcs': '#1D9E75',
+  'KDFM CT': '#7F77DD',
+  'Texas (ANT)': '#BA7517'
+};
+
+function fmtMonth(s) {
+  const [y, m] = s.split('-');
+  return new Date(y, m-1).toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
+}
+
+const legendEl = document.getElementById('agency-legend');
+legendEl.innerHTML = DATA.agencies.map(a =>
+  `<span><span class="swatch" style="background:${AGENCY_COLORS[a]}"></span>${a}</span>`
+).join('');
+
+new Chart(document.getElementById('monthlyChart'), {
+  type: 'bar',
+  data: {
+    labels: DATA.months.map(fmtMonth),
+    datasets: DATA.agencies.map(a => ({
+      label: a,
+      data: DATA.monthly_by_agency[a],
+      backgroundColor: AGENCY_COLORS[a],
+      stack: 's'
+    }))
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    scales: {
+      x: { stacked: true, ticks: { color: '#888', font: { size: 11 } }, grid: { display: false } },
+      y: { stacked: true, ticks: { color: '#888' }, grid: { color: 'rgba(136,135,128,0.12)' } }
+    },
+    plugins: { legend: { display: false } }
+  }
+});
+
+const agencyTotals = DATA.agencies.map(a => ({
+  name: a,
+  total: DATA.monthly_by_agency[a].reduce((s, v) => s + v, 0),
+  months: DATA.monthly_by_agency[a].filter(v => v > 0).length
+}));
+agencyTotals.forEach(a => a.avg = (a.total / Math.max(a.months, 1)));
+
+new Chart(document.getElementById('agencyChart'), {
+  type: 'bar',
+  data: {
+    labels: agencyTotals.map(a => a.name),
+    datasets: [
+      { label: 'Total closed', data: agencyTotals.map(a => a.total), backgroundColor: '#378ADD', yAxisID: 'y' },
+      { label: 'Avg/month', data: agencyTotals.map(a => parseFloat(a.avg.toFixed(1))), backgroundColor: '#1D9E75', yAxisID: 'y1' }
+    ]
+  },
+  options: {
+    indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+    scales: {
+      y:  { ticks: { color: '#888', font: { size: 12 } }, grid: { display: false } },
+      x:  { position: 'top', ticks: { color: '#378ADD' }, grid: { color: 'rgba(136,135,128,0.10)' },
+            title: { display: true, text: 'Total closed', color: '#378ADD', font: { size: 11 } } },
+      y1: { display: false }
+    },
+    plugins: { legend: { display: false },
+      tooltip: { callbacks: { label: c => `${c.dataset.label}: ${c.parsed.x}` } } }
+  }
+});
+
+const statesSorted = Object.entries(DATA.state_patterns)
+  .map(([k, v]) => ({ state: k, ...v }))
+  .sort((a, b) => b.total - a.total);
+
+const top15 = statesSorted.slice(0, 15);
+new Chart(document.getElementById('stateChart'), {
+  type: 'bar',
+  data: {
+    labels: top15.map(s => s.state),
+    datasets: [
+      { label: 'Total closed', data: top15.map(s => s.total), backgroundColor: '#378ADD' },
+      { label: 'Avg/active month', data: top15.map(s => parseFloat(s.avg.toFixed(2))), backgroundColor: '#1D9E75' }
+    ]
+  },
+  options: {
+    indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+    scales: {
+      y: { ticks: { color: '#888', font: { size: 11 } }, grid: { display: false } },
+      x: { position: 'top', ticks: { color: '#888' }, grid: { color: 'rgba(136,135,128,0.10)' } }
+    },
+    plugins: { legend: { position: 'bottom', labels: { font: { size: 11 }, boxWidth: 10 } } }
+  }
+});
+
+const stateSelect = document.getElementById('stateSelect');
+const stateStats = document.getElementById('stateStats');
+const stateDetails = document.getElementById('stateDetails');
+statesSorted.forEach(s => {
+  const opt = document.createElement('option');
+  opt.value = s.state;
+  opt.textContent = `${s.state} (${s.total} closed)`;
+  stateSelect.appendChild(opt);
+});
+
+function renderState(stateCode) {
+  const p = DATA.state_patterns[stateCode];
+  stateStats.innerHTML = `<strong>${p.total}</strong> closed · active in <strong>${p.months}</strong> of 16 months · avg <strong>${p.avg.toFixed(2)}</strong>/active month`;
+  function blockHTML(title, data, cls) {
+    const entries = Object.entries(data);
+    if (entries.length === 0) return `<div class="state-detail-block"><h3>${title}</h3><p style="color:#aaa;font-size:13px;">No data</p></div>`;
+    const rows = entries.map(([k, v]) => `<div class="state-row"><span class="pill ${cls}">${k}</span><span>${v}</span></div>`).join('');
+    return `<div class="state-detail-block"><h3>${title}</h3>${rows}</div>`;
+  }
+  stateDetails.innerHTML =
+    `<div>${blockHTML('Transaction types', p.tx, 'p-tx')}${blockHTML('Workflows', p.wf, 'p-wf')}</div>` +
+    `<div>${blockHTML('Templates', p.tpl, 'p-tpl')}</div>`;
+}
+stateSelect.addEventListener('change', e => renderState(e.target.value));
+renderState(statesSorted[0].state);
+
+let employeeChart = null;
+function renderEmployees(role) {
+  let entries;
+  if (role === 'all') {
+    entries = Object.entries(DATA.employee_totals).map(([name, v]) => ({ name, count: v.total, avg: v.avg, months: v.months }));
+  } else {
+    const r = DATA.employee_role[role] || {};
+    entries = Object.entries(r).map(([name, count]) => ({ name, count, avg: null, months: null }));
+  }
+  entries.sort((a, b) => b.count - a.count);
+  entries = entries.slice(0, 15);
+  if (employeeChart) employeeChart.destroy();
+  employeeChart = new Chart(document.getElementById('employeeChart'), {
+    type: 'bar',
+    data: {
+      labels: entries.map(e => e.name),
+      datasets: [{
+        label: role === 'all' ? 'Total role-file pairings' : `${role} (closed files)`,
+        data: entries.map(e => e.count),
+        backgroundColor: '#534AB7'
+      }]
+    },
+    options: {
+      indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+      scales: {
+        y: { ticks: { color: '#888', font: { size: 12 } }, grid: { display: false } },
+        x: { position: 'top', ticks: { color: '#888' }, grid: { color: 'rgba(136,135,128,0.10)' } }
+      },
+      plugins: { legend: { display: false },
+        tooltip: { callbacks: { label: c => {
+          const e = entries[c.dataIndex];
+          if (e.avg) return `${e.count} pairings · ${e.avg.toFixed(1)}/mo over ${e.months} months`;
+          return `${e.count} files`;
+        } } } }
+    }
+  });
+}
+document.getElementById('roleSelect').addEventListener('change', e => renderEmployees(e.target.value));
+renderEmployees('all');
+
+const matrixRoles = ['Order Opener','File Closer','Escrow Officer','CD Settlement Contact','Title Review','Assistant','Settlement Closing'];
+const matrixPeople = Object.entries(DATA.employee_totals).sort((a, b) => b[1].total - a[1].total).slice(0, 12).map(e => e[0]);
+let headerHTML = '<thead><tr><th>Employee</th>' + matrixRoles.map(r => `<th class="num">${r}</th>`).join('') + '<th class="num">Total</th></tr></thead><tbody>';
+let bodyHTML = '';
+matrixPeople.forEach(p => {
+  let total = 0;
+  let cells = matrixRoles.map(r => {
+    const v = (DATA.employee_role[r] || {})[p] || 0;
+    total += v;
+    return `<td class="num">${v || '<span style="color:#ccc">·</span>'}</td>`;
+  }).join('');
+  bodyHTML += `<tr><td><strong>${p}</strong></td>${cells}<td class="num"><strong>${total}</strong></td></tr>`;
+});
+document.getElementById('matrixTable').innerHTML = headerHTML + bodyHTML + '</tbody>';
+</script>
+</body>
+</html>
