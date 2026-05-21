@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Closings Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/topojson/3.0.2/topojson.min.js"></script>
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
+         margin: 0; padding: 0; background: #f7f7f5; color: #1a1a1a; line-height: 1.5; }
+  .container { max-width: 1280px; margin: 0 auto; padding: 28px 24px 48px; }
+  header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px; flex-wrap: wrap; gap: 8px; }
+  h1 { font-size: 26px; font-weight: 500; margin: 0; }
+  .subtitle { color: #666; font-size: 14px; margin: 4px 0 24px; }
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 24px; }
+  .stat { background: #fff; border-radius: 10px; padding: 14px 16px; border: 1px solid #ececec; }
+  .stat .lbl { font-size: 12px; color: #666; text-transform: uppercase; letter-spacing: 0.04em; }
+  .stat .val { font-size: 26px; font-weight: 500; margin-top: 4px; font-variant-numeric: tabular-nums; }
+  .stat .sub { font-size: 11px; color: #888; margin-top: 2px; }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .grid-3 { display: grid; grid-template-columns: 2fr 1fr; gap: 16px; }
+  .card { background: #fff; border-radius: 10px; padding: 18px 20px; border: 1px solid #ececec; margin-bottom: 16px; }
+  .card h2 { font-size: 16px; font-weight: 500; margin: 0 0 4px; }
+  .card h2 .muted { color: #888; font-weight: 400; font-size: 14px; margin-left: 6px; }
+  .card .hint { font-size: 12px; color: #888; margin: 0 0 12px; }
+  .chart-wrap { position: relative; width: 100%; }
+  .chart-wrap.h-280 { height: 280px; }
+  .chart-wrap.h-340 { height: 340px; }
+  .chart-wrap.h-420 { height: 420px; }
+  .chart-wrap.h-500 { height: 500px; }
+  table { border-collapse: collapse; width: 100%; font-size: 13px; }
+  th, td { padding: 7px 10px; text-align: left; border-bottom: 1px solid #f0f0f0; }
+  th { background: #fafafa; font-weight: 500; color: #555; font-size: 11px;
+        text-transform: uppercase; letter-spacing: 0.04em; }
+  td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .filter-row { display: flex; gap: 12px; align-items: center; margin-bottom: 12px; flex-wrap: wrap; }
+  .filter-row label { font-size: 12px; color: #666; }
+  select { font-size: 13px; padding: 6px 10px; border: 1px solid #d8d8d4; border-radius: 6px;
+            background: #fff; cursor: pointer; min-width: 120px; }
+  select:focus { outline: 2px solid #378ADD; outline-offset: -1px; }
+  .pill-list { display: flex; flex-wrap: wrap; gap: 6px; }
+  .pill { font-size: 12px; padding: 3px 9px; border-radius: 999px; }
+  .p-tx { background: #E1F5EE; color: #085041; }
+  .p-wf { background: #EEEDFE; color: #3C3489; }
+  .p-tpl { background: #FAEEDA; color: #633806; }
+  .legend { display: flex; flex-wrap: wrap; gap: 12px; font-size: 11px; color: #666; margin-bottom: 6px; }
+  .legend span.swatch { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: -1px; }
+  .state-detail-block { margin-top: 14px; }
+  .state-detail-block h3 { font-size: 12px; font-weight: 500; margin: 8px 0 4px; color: #555; text-transform: uppercase; letter-spacing: 0.04em; }
+  .state-row { display: grid; grid-template-columns: 1fr 60px; padding: 3px 0; font-size: 13px; border-bottom: 1px solid #f5f5f3; }
+  .state-row span:last-child { text-align: right; color: #555; font-variant-numeric: tabular-nums; }
+  @media (max-width: 900px) {
+    .grid-2, .grid-3 { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+<header>
+  <h1>Closings dashboard</h1>
+  <span class="subtitle">Generated May 18, 2026 · 429 closed files · Jan 2025 – Apr 2026</span>
+</header>
+
+<div class="stats">
+  <div class="stat"><div class="lbl">Closed files</div><div class="val">429</div><div class="sub">across 4 agencies, 36 states</div></div>
+  <div class="stat"><div class="lbl">Avg closings / month</div><div class="val">26.8</div><div class="sub">over 16 months</div></div>
+  <div class="stat"><div class="lbl">Active employees</div><div class="val">21</div><div class="sub">7 distinct roles</div></div>
+  <div class="stat"><div class="lbl">Open pipeline</div><div class="val">298</div><div class="sub">files in-flight</div></div>
+</div>
+
+<div class="card">
+  <h2>Monthly closings <span class="muted">stacked by agency</span></h2>
+  <p class="hint">Closing volume by month — Jan 2025 through Apr 2026. ARES dominates monthly throughput.</p>
+  <div class="legend" id="agency-legend"></div>
+  <div class="chart-wrap h-340"><canvas id="monthlyChart"></canvas></div>
+</div>
+
+<div class="grid-2">
+  <div class="card">
+    <h2>Closings by agency</h2>
+    <p class="hint">Total closed files and monthly average per agency.</p>
+    <div class="chart-wrap h-280"><canvas id="agencyChart"></canvas></div>
+  </div>
+  <div class="card">
+    <h2>Top 15 states <span class="muted">by closing volume</span></h2>
+    <div class="chart-wrap h-420"><canvas id="stateChart"></canvas></div>
+  </div>
+</div>
+
+<div class="card">
+  <h2>State playbook — transaction types, workflows & templates</h2>
+  <p class="hint">Pick a state to see what kinds of files actually close there.</p>
+  <div class="filter-row">
+    <label for="stateSelect">State:</label>
+    <select id="stateSelect"></select>
+    <span id="stateStats" style="font-size: 13px; color: #555;"></span>
+  </div>
+  <div class="grid-2" id="stateDetails"></div>
+</div>
+
+<div class="card">
+  <h2>Employee workload <span class="muted">across roles</span></h2>
+  <p class="hint">Closed-file involvement per person. Many people work in multiple roles, so totals reflect every role-file pairing (e.g., being both Order Opener and File Closer on a file counts twice).</p>
+  <div class="filter-row">
+    <label for="roleSelect">Role:</label>
+    <select id="roleSelect">
+      <option value="all">All roles (total involvement)</option>
+      <option value="Order Opener">Order Opener</option>
+      <option value="File Closer">File Closer</option>
+      <option value="Escrow Officer">Escrow Officer</option>
+      <option value="CD Settlement Contact">CD Settlement Contact</option>
+      <option value="Title Review">Title Review</option>
+      <option value="Assistant">Assistant</option>
+      <option value="Settlement Closing">Settlement Closing</option>
+    </select>
+  </div>
+  <div class="chart-wrap h-500"><canvas id="employeeChart"></canvas></div>
+</div>
+
+<div class="card">
+  <h2>Employee × role matrix</h2>
+  <p class="hint">Who does what. Top 12 employees by total involvement, showing how their closed-file work splits across roles.</p>
+  <div style="overflow-x: auto;">
+    <table id="matrixTable"></table>
+  </div>
+</div>
+
+<div class="card">
+  <h2>Employee × state coverage</h2>
+  <p class="hint">Where each person actually does work. Counts are deduped per file — being both Order Opener and File Closer on one Florida file counts as 1 FL file, not 2. Pick a state to see who handles it, or pick an employee to see their footprint.</p>
+  <div class="filter-row">
+    <label for="covMode">View:</label>
+    <select id="covMode">
+      <option value="byEmployee">By employee → states they work</option>
+      <option value="byState">By state → who handles it</option>
+    </select>
+    <label for="covSelect" id="covSelectLabel">Employee:</label>
+    <select id="covSelect"></select>
+    <span id="covStats" style="font-size: 13px; color: #555;"></span>
+  </div>
+  <div class="chart-wrap h-420"><canvas id="coverageChart"></canvas></div>
+  <div id="coverageRoleBreakdown" style="margin-top: 14px;"></div>
+</div>
+
+<div class="card">
+  <h2>Employee × agency split</h2>
+  <p class="hint">Which settlement agency each person primarily works for. Most are dedicated to one agency, but some — like Marie Melman and Lisa Davis — bridge multiple.</p>
+  <div class="chart-wrap h-500"><canvas id="empAgencyChart"></canvas></div>
+</div>
+
+<div class="card">
+  <h2>Employee × state heatmap</h2>
+  <p class="hint">Specialists vs generalists at a glance. Rows = employees (sorted by volume), columns = top 12 states. "Primary agency" shows where each person mostly works. Cells colored by file count.</p>
+  <div style="overflow-x: auto;">
+    <table id="heatmapTable"></table>
+  </div>
+</div>
+
+</div>
+
+<script>
+const DATA = {"months": ["2025-01", "2025-02", "2025-03", "2025-04", "2025-05", "2025-06", "2025-07", "2025-08", "2025-09", "2025-10", "2025-11", "2025-12", "2026-01", "2026-02", "2026-03", "2026-04"], "monthly_total": [28, 25, 29, 39, 41, 33, 25, 25, 27, 29, 16, 44, 21, 19, 17, 11], "monthly_by_agency": {"ARES": [25, 22, 19, 25, 32, 29, 21, 16, 25, 25, 11, 39, 14, 18, 14, 10], "Appellate Land Svcs": [2, 1, 10, 9, 7, 4, 2, 5, 2, 4, 4, 3, 3, 1, 1, 1], "KDFM CT": [0, 2, 0, 4, 2, 0, 2, 4, 0, 0, 1, 2, 4, 0, 2, 0], "Texas (ANT)": [1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]}, "agencies": ["ARES", "Appellate Land Svcs", "KDFM CT", "Texas (ANT)"], "state_patterns": {"FL": {"total": 76, "months": 14, "avg": 5.43, "tx": {"Refinance": 31, "Title Search Only": 16, "ARES-FL-Refinance": 11, "ARES-FL Purchase": 8, "Purchase": 5}, "wf": {"ARES - REFI": 41, "REO - Title Only": 16, "ARES - Standard Purchase": 12, "Refinance": 4, "Purchase": 1}, "tpl": {"727 - QMS": 18, "GOVT": 9, "ARES - FL - Purchase": 5, "727 - XOME": 1}}, "NJ": {"total": 50, "months": 15, "avg": 3.33, "tx": {"Refinance": 35, "Purchase": 12, "Accounting": 1, "Co-Op Purchase": 1, "Reverse": 1}, "wf": {"BLANK - ADD TASKS": 30, "Purchase /Refi - NJ": 8, "Refinance": 6, "ANT - Purchase /Refi - NJ": 4, "Reverse Refinance": 1}, "tpl": {"NJ - Refi - Lisa": 21, "NJ - PUR - Lisa": 8, "Purchase - NJ": 3, "NJ - Reverse": 1}}, "TX": {"total": 48, "months": 14, "avg": 3.43, "tx": {"Purchase": 33, "Title Search Only": 15}, "wf": {"REO - BTC Coordination": 31, "REO - Title Only": 15, "REO - CASH": 2}, "tpl": {"727 - XOME - TX (TITLE CLEARING)": 33, "GOVT": 15}}, "GA": {"total": 31, "months": 11, "avg": 2.82, "tx": {"Purchase": 28, "Refinance": 2, "ARES-GA & MA-Refinance": 1}, "wf": {"Purchase - Co Op": 20, "REO - CASH": 5, "Purchase": 2, "ARES - REFI": 2, "REO - BTC Coordination": 1}, "tpl": {"727 - THURBER (SEARCH ONLY)": 20, "727 - XOME - GA & NC (Thurber)": 6, "727 - Thurber Law": 3}}, "PA": {"total": 27, "months": 13, "avg": 2.08, "tx": {"Purchase": 11, "ARES-PA-Refinance": 7, "Refinance": 6, "ARES-PA-Purchase": 2, "Reverse": 1}, "wf": {"ARES - REFI": 14, "REO - CASH": 10, "ARES - Standard Purchase": 2, "REO - LENDER": 1}, "tpl": {"727 - XOME - PA": 11}}, "CT": {"total": 23, "months": 9, "avg": 2.56, "tx": {"KAP-CT-Refinance": 18, "Refinance": 2, "KAP-CT-Purchase": 2, "Reverse": 1}, "wf": {"ARES - REFI": 21, "ARES - Standard Purchase": 1, "ARES - Commercial Purchase": 1}, "tpl": {"KDFR -CT - Priority - Refi": 7}}, "IL": {"total": 21, "months": 11, "avg": 1.91, "tx": {"Purchase": 21}, "wf": {"Foreclosure": 12, "REO - BTC Coordination": 9}, "tpl": {"727 - XOME - IL (GINALI)": 20, "727 - XOME": 1}}, "MI": {"total": 19, "months": 10, "avg": 1.9, "tx": {"Purchase": 13, "Title Search Only": 5, "Refinance": 1}, "wf": {"REO - CASH": 11, "REO - Title Only": 5, "ARES - Standard Purchase": 2, "ARES - REFI": 1}, "tpl": {"727 - XOME - MI": 11, "GOVT": 5}}, "NC": {"total": 16, "months": 11, "avg": 1.45, "tx": {"Purchase": 5, "ARES-NC-Refinance": 5, "Refinance": 4, "Title Search Only": 1, "Accounting": 1}, "wf": {"ARES - REFI": 9, "REO - CASH": 5, "BLANK - ADD TASKS": 1, "ARES - Commercial Purchase": 1}, "tpl": {"727 - XOME - GA & NC (Thurber)": 3, "727 - XOME": 1, "727 - Thurber Law": 1}}, "OH": {"total": 13, "months": 7, "avg": 1.86, "tx": {"Purchase": 5, "Refinance": 5, "Title Search Only": 3}, "wf": {"ARES - REFI": 5, "REO - CASH": 4, "REO - Title Only": 3, "ARES - Standard Purchase": 1}, "tpl": {"727 - XOME - OH": 4, "GOVT": 3}}, "MO": {"total": 11, "months": 7, "avg": 1.57, "tx": {"Purchase": 11}, "wf": {"REO - CASH": 10, "REO - BTC Coordination": 1}, "tpl": {"727 - XOME": 10, "727 - XOME - BTC": 1}}, "NY": {"total": 9, "months": 7, "avg": 1.29, "tx": {"Purchase": 9}, "wf": {"REO - BTC Coordination": 7, "REO - CASH": 2}, "tpl": {"727 - XOME - NY (BLOCK)": 9}}, "MS": {"total": 8, "months": 6, "avg": 1.33, "tx": {"Purchase": 8}, "wf": {"REO - CASH": 8}, "tpl": {"727 - XOME": 8}}, "SC": {"total": 7, "months": 4, "avg": 1.75, "tx": {"Refinance": 3, "Purchase": 2, "ARES-SC & VT- Commercial Purchase": 1, "ARES-SC & VT-Refinance": 1}, "wf": {"ARES - REFI": 3, "REO - BTC Coordination": 2, "ARES - Commercial Purchase": 1, "ARES - Commercial Refinance": 1}, "tpl": {"727 - XOME": 2}}, "MD": {"total": 7, "months": 5, "avg": 1.4, "tx": {"Purchase": 4, "Refinance": 3}, "wf": {"ARES - REFI": 3, "ARES - Standard Purchase": 2, "REO - CASH": 1, "REO - LENDER": 1}, "tpl": {"727 - XOME - MD": 2}}, "IN": {"total": 6, "months": 6, "avg": 1.0, "tx": {"Purchase": 5, "Refinance": 1}, "wf": {"REO - CASH": 5, "ARES - REFI": 1}, "tpl": {"727 - XOME - IN": 4, "727 - XOME": 1}}, "VA": {"total": 5, "months": 5, "avg": 1.0, "tx": {"Refinance": 4, "Purchase": 1}, "wf": {"ARES - REFI": 4, "REO - CASH": 1}, "tpl": {"727 - XOME": 1}}, "OK": {"total": 5, "months": 4, "avg": 1.25, "tx": {"Purchase": 5}, "wf": {"REO - BTC Coordination": 3, "REO - CASH": 2}, "tpl": {"727 - XOME - OK (TITLE CLEARING)": 4, "727 - XOME": 1}}, "KY": {"total": 5, "months": 5, "avg": 1.0, "tx": {"Refinance": 3, "Purchase": 2}, "wf": {"ARES - REFI": 3, "ARES - Standard Purchase": 2}, "tpl": {}}, "AL": {"total": 4, "months": 4, "avg": 1.0, "tx": {"Purchase": 4}, "wf": {"REO - BTC Coordination": 3, "Foreclosure": 1}, "tpl": {"727 - XOME - AL (TITLE CLEARING)": 3, "727 - XOME": 1}}, "LA": {"total": 4, "months": 4, "avg": 1.0, "tx": {"Purchase": 4}, "wf": {"REO - BTC Coordination": 3, "Foreclosure": 1}, "tpl": {"727 - XOME - BTC": 2, "727 - XOME": 2}}, "KS": {"total": 4, "months": 3, "avg": 1.33, "tx": {"Purchase": 4}, "wf": {"REO - BTC Coordination": 3, "Foreclosure": 1}, "tpl": {"727 - XOME": 4}}, "AZ": {"total": 4, "months": 4, "avg": 1.0, "tx": {"Purchase": 4}, "wf": {"REO - BTC Coordination": 4}, "tpl": {"727 - XOME - AZ (TITLE CLEARING)": 3, "727 - XOME": 1}}, "WV": {"total": 4, "months": 3, "avg": 1.33, "tx": {"Purchase": 4}, "wf": {"REO - BTC Coordination": 3, "REO - CASH": 1}, "tpl": {"727 - XOME": 3, "MY NEXT BID": 1}}, "VT": {"total": 3, "months": 3, "avg": 1.0, "tx": {"Refinance": 3}, "wf": {"ARES - REFI": 3}, "tpl": {}}, "AR": {"total": 3, "months": 3, "avg": 1.0, "tx": {"Purchase": 3}, "wf": {"REO - BTC Coordination": 2, "Foreclosure": 1}, "tpl": {"727 - XOME": 2, "727 - XOME - BTC": 1}}, "MT": {"total": 3, "months": 2, "avg": 1.5, "tx": {"Purchase": 3}, "wf": {"ARES - Standard Purchase": 2, "REO - CASH": 1}, "tpl": {"727 - XOME": 1}}, "CA": {"total": 2, "months": 2, "avg": 1.0, "tx": {"Purchase": 2}, "wf": {"REO - BTC Coordination": 2}, "tpl": {"727 - XOME": 1, "727 - XOME - BTC": 1}}, "WI": {"total": 2, "months": 2, "avg": 1.0, "tx": {"Purchase": 2}, "wf": {"REO - CASH": 2}, "tpl": {"727 - XOME": 2}}, "MA": {"total": 2, "months": 2, "avg": 1.0, "tx": {"Refinance": 2}, "wf": {"ARES - REFI": 2}, "tpl": {}}, "CO": {"total": 2, "months": 2, "avg": 1.0, "tx": {"Title Search Only": 1, "Refinance": 1}, "wf": {"REO - Title Only": 1, "ARES - REFI": 1}, "tpl": {"GOVT": 1}}, "DC": {"total": 1, "months": 1, "avg": 1.0, "tx": {"Purchase": 1}, "wf": {"REO - CASH": 1}, "tpl": {"727 - XOME": 1}}, "ME": {"total": 1, "months": 1, "avg": 1.0, "tx": {"Refinance": 1}, "wf": {"ARES - REFI": 1}, "tpl": {}}, "RI": {"total": 1, "months": 1, "avg": 1.0, "tx": {"Refinance": 1}, "wf": {"ARES - REFI": 1}, "tpl": {}}, "TN": {"total": 1, "months": 1, "avg": 1.0, "tx": {"Purchase": 1}, "wf": {"Purchase": 1}, "tpl": {}}, "WY": {"total": 1, "months": 1, "avg": 1.0, "tx": {"Purchase": 1}, "wf": {"REO - BTC Coordination": 1}, "tpl": {"727 - XOME": 1}}}, "employee_role": {"Order Opener": {"Chanda Johnson": 157, "Nikki Teague": 70, "Erin Wynne": 52, "Heidi Gemeling": 45, "Lisa M. Davis": 42, "Rebecca Wood": 33, "Christina Fritsch": 14, "Samantha Crane": 7, "Amanda Rose O'Neill": 2, "Michael Bilbao": 2, "Stephanie Grimm": 1, "Bonny Oh": 1, "Jada White": 1}, "File Closer": {"Nikki Teague": 196, "Lisa M. Davis": 135, "Rebecca Wood": 45, "Stephanie Grimm": 17, "Magan Whitaker": 5, "Jennifer Beuter": 4, "Michael Bilbao": 1}, "Escrow Officer": {"Lisa M. Davis": 71, "Rebecca Wood": 4, "Jennifer Beuter": 3, "Nikki Teague": 2}, "CD Settlement Contact": {"Nikki Teague": 167, "Lisa M. Davis": 64, "Christina Fritsch": 13, "Rebecca Wood": 12, "Michael Bilbao": 2, "Krystal Bissoon": 1}, "Title Review": {"Nikki Teague": 131, "Heidi Gemeling": 115, "Rebecca Wood": 12, "Lisa M. Davis": 6, "Connie Powers": 6, "Susan B Hart": 5, "Magan Whitaker": 2, "Lori Shapiro": 2}, "Assistant": {"Marie Elaina Melman": 230, "Chanda Johnson": 196, "Samantha Crane": 13, "Helen Fucile": 7, "Heidi Gemeling": 6, "Stephanie Grimm": 1}, "Settlement Closing": {"Lisa M. Davis": 46, "Rebecca Wood": 17, "Nikki Teague": 6, "Christina Fritsch": 1}}, "employee_totals": {"Nikki Teague": {"total": 572, "months": 16, "avg": 35.8}, "Lisa M. Davis": {"total": 364, "months": 16, "avg": 22.8}, "Chanda Johnson": {"total": 353, "months": 16, "avg": 22.1}, "Marie Elaina Melman": {"total": 230, "months": 16, "avg": 14.4}, "Heidi Gemeling": {"total": 166, "months": 16, "avg": 10.4}, "Rebecca Wood": {"total": 123, "months": 11, "avg": 11.2}, "Erin Wynne": {"total": 52, "months": 9, "avg": 5.8}, "Christina Fritsch": {"total": 28, "months": 8, "avg": 3.5}, "Samantha Crane": {"total": 20, "months": 4, "avg": 5.0}, "Stephanie Grimm": {"total": 19, "months": 3, "avg": 6.3}, "Helen Fucile": {"total": 7, "months": 7, "avg": 1.0}, "Jennifer Beuter": {"total": 7, "months": 2, "avg": 3.5}, "Magan Whitaker": {"total": 7, "months": 3, "avg": 2.3}, "Connie Powers": {"total": 6, "months": 6, "avg": 1.0}, "Michael Bilbao": {"total": 5, "months": 3, "avg": 1.7}, "Susan B Hart": {"total": 5, "months": 4, "avg": 1.2}, "Amanda Rose O'Neill": {"total": 2, "months": 2, "avg": 1.0}, "Lori Shapiro": {"total": 2, "months": 1, "avg": 2.0}, "Bonny Oh": {"total": 1, "months": 1, "avg": 1.0}, "Krystal Bissoon": {"total": 1, "months": 1, "avg": 1.0}, "Jada White": {"total": 1, "months": 1, "avg": 1.0}}, "employee_state": {"Marie Elaina Melman": {"total": 230, "state_count": 24, "states": {"FL": 49, "NJ": 39, "PA": 25, "CT": 21, "MI": 13, "NC": 10, "OH": 9, "MD": 7, "MS": 7, "GA": 7, "MO": 7, "VA": 5, "IN": 5, "KY": 5, "SC": 5, "NY": 3, "WI": 2, "TX": 2, "AZ": 2, "MT": 2, "MA": 2, "RI": 1, "ME": 1, "DC": 1}}, "Nikki Teague": {"total": 221, "state_count": 29, "states": {"TX": 47, "GA": 29, "IL": 21, "MI": 15, "FL": 11, "PA": 11, "MO": 11, "NY": 9, "MS": 8, "OH": 7, "NC": 5, "IN": 5, "OK": 5, "WV": 4, "AZ": 4, "AL": 4, "KS": 4, "LA": 4, "AR": 3, "WI": 2, "MD": 2, "CA": 2, "SC": 2, "TN": 1, "WY": 1, "CT": 1, "VA": 1, "MT": 1, "DC": 1}}, "Chanda Johnson": {"total": 203, "state_count": 29, "states": {"TX": 33, "GA": 29, "IL": 21, "FL": 14, "PA": 11, "MO": 11, "MI": 11, "NY": 9, "MS": 8, "NC": 5, "IN": 5, "OK": 5, "WV": 4, "AZ": 4, "OH": 4, "AL": 4, "KS": 4, "LA": 4, "AR": 3, "WI": 2, "MD": 2, "CA": 2, "SC": 2, "TN": 1, "WY": 1, "CT": 1, "VA": 1, "MT": 1, "DC": 1}}, "Lisa M. Davis": {"total": 142, "state_count": 17, "states": {"FL": 36, "NJ": 31, "CT": 18, "PA": 13, "NC": 9, "MD": 5, "KY": 5, "SC": 5, "OH": 4, "MI": 3, "VA": 3, "VT": 3, "GA": 2, "MA": 2, "ME": 1, "CO": 1, "IN": 1}}, "Heidi Gemeling": {"total": 118, "state_count": 18, "states": {"FL": 29, "CT": 22, "PA": 15, "NC": 11, "OH": 6, "MD": 5, "KY": 5, "SC": 5, "VA": 4, "MI": 3, "VT": 3, "GA": 2, "MT": 2, "MA": 2, "RI": 1, "ME": 1, "CO": 1, "IN": 1}}, "Rebecca Wood": {"total": 65, "state_count": 13, "states": {"FL": 34, "PA": 6, "CT": 5, "MI": 3, "NJ": 3, "KY": 3, "NC": 3, "MD": 2, "MT": 2, "TX": 1, "CO": 1, "VA": 1, "SC": 1}}, "Erin Wynne": {"total": 52, "state_count": 15, "states": {"FL": 17, "CT": 11, "PA": 4, "NC": 4, "MD": 3, "VA": 2, "OH": 2, "KY": 2, "MI": 1, "GA": 1, "RI": 1, "ME": 1, "CO": 1, "VT": 1, "MT": 1}}, "Stephanie Grimm": {"total": 17, "state_count": 4, "states": {"FL": 14, "MI": 1, "TX": 1, "CO": 1}}, "Christina Fritsch": {"total": 14, "state_count": 1, "states": {"NJ": 14}}, "Samantha Crane": {"total": 13, "state_count": 1, "states": {"FL": 13}}, "Helen Fucile": {"total": 7, "state_count": 3, "states": {"NJ": 5, "CO": 1, "CT": 1}}, "Magan Whitaker": {"total": 6, "state_count": 4, "states": {"PA": 2, "TX": 2, "OH": 1, "RI": 1}}, "Connie Powers": {"total": 6, "state_count": 1, "states": {"NJ": 6}}, "Susan B Hart": {"total": 5, "state_count": 1, "states": {"NJ": 5}}, "Jennifer Beuter": {"total": 4, "state_count": 4, "states": {"VA": 1, "CT": 1, "OH": 1, "NJ": 1}}, "Michael Bilbao": {"total": 3, "state_count": 1, "states": {"NJ": 3}}, "Amanda Rose O'Neill": {"total": 2, "state_count": 2, "states": {"PA": 1, "FL": 1}}, "Lori Shapiro": {"total": 2, "state_count": 1, "states": {"NJ": 2}}, "Bonny Oh": {"total": 1, "state_count": 1, "states": {"NJ": 1}}, "Jada White": {"total": 1, "state_count": 1, "states": {"NJ": 1}}, "Krystal Bissoon": {"total": 1, "state_count": 1, "states": {"NJ": 1}}}, "employee_state_by_role": {"Nikki Teague": {"FL": {"Order Opener": 4, "Settlement Closing": 6, "File Closer": 7, "CD Settlement Contact": 4, "Escrow Officer": 2, "Title Review": 1}, "WV": {"CD Settlement Contact": 4, "Order Opener": 2, "Title Review": 4, "File Closer": 4}, "TN": {"Order Opener": 1, "File Closer": 1}, "NC": {"CD Settlement Contact": 4, "Order Opener": 1, "Title Review": 4, "File Closer": 5}, "WI": {"CD Settlement Contact": 2, "Order Opener": 1, "Title Review": 2, "File Closer": 2}, "GA": {"CD Settlement Contact": 6, "Order Opener": 25, "Title Review": 6, "File Closer": 29}, "PA": {"CD Settlement Contact": 11, "Order Opener": 1, "Title Review": 11, "File Closer": 11}, "TX": {"CD Settlement Contact": 33, "Order Opener": 15, "File Closer": 32}, "AZ": {"CD Settlement Contact": 4, "Order Opener": 1, "Title Review": 4, "File Closer": 4}, "IL": {"CD Settlement Contact": 21, "Order Opener": 3, "Title Review": 21, "File Closer": 21}, "MO": {"CD Settlement Contact": 11, "Order Opener": 3, "Title Review": 11, "File Closer": 11}, "IN": {"CD Settlement Contact": 5, "Order Opener": 1, "Title Review": 5, "File Closer": 5}, "NY": {"CD Settlement Contact": 9, "Title Review": 9, "File Closer": 9, "Order Opener": 1}, "MS": {"CD Settlement Contact": 8, "Order Opener": 2, "Title Review": 8, "File Closer": 8}, "OH": {"CD Settlement Contact": 4, "Title Review": 4, "File Closer": 5, "Order Opener": 3}, "WY": {"CD Settlement Contact": 1, "Title Review": 1, "File Closer": 1}, "MI": {"CD Settlement Contact": 11, "Title Review": 11, "File Closer": 11, "Order Opener": 4}, "AL": {"CD Settlement Contact": 4, "Title Review": 4, "File Closer": 4}, "OK": {"CD Settlement Contact": 5, "Title Review": 5, "File Closer": 5, "Order Opener": 1}, "MD": {"CD Settlement Contact": 2, "Title Review": 2, "File Closer": 2}, "KS": {"CD Settlement Contact": 4, "Title Review": 4, "File Closer": 4}, "AR": {"CD Settlement Contact": 3, "Title Review": 3, "File Closer": 3}, "LA": {"CD Settlement Contact": 4, "Order Opener": 1, "Title Review": 4, "File Closer": 4}, "CT": {"File Closer": 1}, "CA": {"CD Settlement Contact": 2, "Title Review": 2, "File Closer": 2}, "VA": {"CD Settlement Contact": 1, "Title Review": 1, "File Closer": 1}, "MT": {"CD Settlement Contact": 1, "Title Review": 1, "File Closer": 1}, "SC": {"CD Settlement Contact": 2, "Title Review": 2, "File Closer": 2}, "DC": {"CD Settlement Contact": 1, "Title Review": 1, "File Closer": 1}}, "Stephanie Grimm": {"FL": {"File Closer": 14, "Order Opener": 1}, "MI": {"File Closer": 1}, "TX": {"Assistant": 1, "File Closer": 1}, "CO": {"File Closer": 1}}, "Rebecca Wood": {"FL": {"Order Opener": 14, "Settlement Closing": 14, "File Closer": 22, "Title Review": 12, "CD Settlement Contact": 10, "Escrow Officer": 4}, "MI": {"Order Opener": 3}, "TX": {"Order Opener": 1}, "CO": {"Order Opener": 1}, "CT": {"File Closer": 4, "Order Opener": 2}, "MD": {"File Closer": 2}, "NJ": {"Order Opener": 3, "File Closer": 3, "CD Settlement Contact": 1}, "KY": {"CD Settlement Contact": 1, "Order Opener": 1, "File Closer": 3, "Settlement Closing": 1}, "VA": {"File Closer": 1}, "MT": {"Order Opener": 1, "Settlement Closing": 2, "File Closer": 2}, "NC": {"File Closer": 2, "Order Opener": 1}, "PA": {"File Closer": 6, "Order Opener": 5}, "SC": {"Order Opener": 1}}, "Chanda Johnson": {"WV": {"Assistant": 4, "Order Opener": 2}, "FL": {"Order Opener": 14, "Assistant": 7}, "TN": {"Assistant": 1}, "NC": {"Assistant": 5, "Order Opener": 4}, "WI": {"Assistant": 2, "Order Opener": 1}, "GA": {"Assistant": 29, "Order Opener": 4}, "PA": {"Assistant": 11, "Order Opener": 10}, "TX": {"Assistant": 33, "Order Opener": 32}, "AZ": {"Assistant": 4, "Order Opener": 3}, "IL": {"Assistant": 21, "Order Opener": 18}, "MO": {"Assistant": 11, "Order Opener": 8}, "IN": {"Assistant": 5, "Order Opener": 4}, "NY": {"Order Opener": 8, "Assistant": 9}, "MS": {"Assistant": 8, "Order Opener": 6}, "OH": {"Order Opener": 4, "Assistant": 4}, "WY": {"Order Opener": 1, "Assistant": 1}, "MI": {"Order Opener": 11, "Assistant": 11}, "AL": {"Order Opener": 4, "Assistant": 4}, "OK": {"Order Opener": 4, "Assistant": 5}, "MD": {"Order Opener": 2, "Assistant": 2}, "KS": {"Order Opener": 4, "Assistant": 4}, "AR": {"Order Opener": 3, "Assistant": 3}, "LA": {"Assistant": 4, "Order Opener": 3}, "CT": {"Assistant": 1}, "CA": {"Order Opener": 2, "Assistant": 2}, "VA": {"Order Opener": 1, "Assistant": 1}, "MT": {"Order Opener": 1, "Assistant": 1}, "SC": {"Order Opener": 2, "Assistant": 2}, "DC": {"Order Opener": 1, "Assistant": 1}}, "Amanda Rose O'Neill": {"PA": {"Order Opener": 1}, "FL": {"Order Opener": 1}}, "Magan Whitaker": {"PA": {"File Closer": 2}, "TX": {"Title Review": 2, "File Closer": 1}, "OH": {"File Closer": 1}, "RI": {"File Closer": 1}}, "Heidi Gemeling": {"PA": {"Title Review": 15, "Order Opener": 5}, "FL": {"Title Review": 28, "Assistant": 2, "Order Opener": 7}, "MI": {"Title Review": 3}, "VA": {"Title Review": 4, "Order Opener": 2}, "CT": {"Title Review": 21, "Assistant": 2, "Order Opener": 8}, "MD": {"Title Review": 5, "Order Opener": 2}, "OH": {"Title Review": 6, "Order Opener": 3}, "GA": {"Assistant": 1, "Title Review": 2, "Order Opener": 1}, "RI": {"Title Review": 1}, "ME": {"Title Review": 1}, "NC": {"Title Review": 11, "Order Opener": 6}, "CO": {"Assistant": 1, "Title Review": 1}, "VT": {"Title Review": 3, "Order Opener": 2}, "KY": {"Title Review": 5, "Order Opener": 2}, "MT": {"Title Review": 2}, "SC": {"Title Review": 4, "Order Opener": 4}, "IN": {"Order Opener": 1, "Title Review": 1}, "MA": {"Order Opener": 2, "Title Review": 2}}, "Marie Elaina Melman": {"PA": {"Assistant": 25}, "FL": {"Assistant": 49}, "WI": {"Assistant": 2}, "MI": {"Assistant": 13}, "TX": {"Assistant": 2}, "NJ": {"Assistant": 39}, "AZ": {"Assistant": 2}, "VA": {"Assistant": 5}, "CT": {"Assistant": 21}, "MD": {"Assistant": 7}, "NY": {"Assistant": 3}, "MS": {"Assistant": 7}, "OH": {"Assistant": 9}, "GA": {"Assistant": 7}, "RI": {"Assistant": 1}, "IN": {"Assistant": 5}, "ME": {"Assistant": 1}, "NC": {"Assistant": 10}, "MO": {"Assistant": 7}, "KY": {"Assistant": 5}, "MT": {"Assistant": 2}, "SC": {"Assistant": 5}, "MA": {"Assistant": 2}, "DC": {"Assistant": 1}}, "Lisa M. Davis": {"FL": {"CD Settlement Contact": 24, "Order Opener": 9, "File Closer": 35, "Settlement Closing": 23, "Title Review": 6, "Escrow Officer": 24}, "MI": {"File Closer": 3, "Settlement Closing": 1}, "NJ": {"CD Settlement Contact": 29, "Order Opener": 29, "Settlement Closing": 13, "File Closer": 29, "Escrow Officer": 6}, "VA": {"Settlement Closing": 1, "File Closer": 3, "Escrow Officer": 1}, "CT": {"Escrow Officer": 11, "CD Settlement Contact": 8, "File Closer": 16, "Settlement Closing": 4, "Order Opener": 2}, "MD": {"Settlement Closing": 1, "File Closer": 5, "Escrow Officer": 2}, "GA": {"File Closer": 2, "Escrow Officer": 1}, "ME": {"File Closer": 1}, "NC": {"File Closer": 9, "Escrow Officer": 7}, "PA": {"File Closer": 13, "Escrow Officer": 5, "Order Opener": 1}, "CO": {"File Closer": 1}, "OH": {"File Closer": 4, "Escrow Officer": 3, "Order Opener": 1, "CD Settlement Contact": 1, "Settlement Closing": 1}, "VT": {"File Closer": 3, "Escrow Officer": 2}, "KY": {"Settlement Closing": 1, "File Closer": 3, "CD Settlement Contact": 1, "Escrow Officer": 2}, "SC": {"File Closer": 5, "Escrow Officer": 4, "CD Settlement Contact": 1, "Settlement Closing": 1}, "IN": {"Escrow Officer": 1, "File Closer": 1}, "MA": {"Escrow Officer": 2, "File Closer": 2}}, "Erin Wynne": {"FL": {"Order Opener": 17}, "MI": {"Order Opener": 1}, "VA": {"Order Opener": 2}, "CT": {"Order Opener": 11}, "MD": {"Order Opener": 3}, "PA": {"Order Opener": 4}, "OH": {"Order Opener": 2}, "GA": {"Order Opener": 1}, "RI": {"Order Opener": 1}, "ME": {"Order Opener": 1}, "NC": {"Order Opener": 4}, "CO": {"Order Opener": 1}, "VT": {"Order Opener": 1}, "KY": {"Order Opener": 2}, "MT": {"Order Opener": 1}}, "Connie Powers": {"NJ": {"Title Review": 6}}, "Samantha Crane": {"FL": {"Assistant": 13, "Order Opener": 7}}, "Bonny Oh": {"NJ": {"Order Opener": 1}}, "Helen Fucile": {"NJ": {"Assistant": 5}, "CO": {"Assistant": 1}, "CT": {"Assistant": 1}}, "Michael Bilbao": {"NJ": {"CD Settlement Contact": 2, "File Closer": 1, "Order Opener": 2}}, "Susan B Hart": {"NJ": {"Title Review": 5}}, "Christina Fritsch": {"NJ": {"CD Settlement Contact": 13, "Order Opener": 14, "Settlement Closing": 1}}, "Lori Shapiro": {"NJ": {"Title Review": 2}}, "Jada White": {"NJ": {"Order Opener": 1}}, "Krystal Bissoon": {"NJ": {"CD Settlement Contact": 1}}, "Jennifer Beuter": {"VA": {"Escrow Officer": 1, "File Closer": 1}, "CT": {"Escrow Officer": 1, "File Closer": 1}, "OH": {"Escrow Officer": 1, "File Closer": 1}, "NJ": {"File Closer": 1}}}, "employee_order": ["Marie Elaina Melman", "Nikki Teague", "Chanda Johnson", "Lisa M. Davis", "Heidi Gemeling", "Rebecca Wood", "Erin Wynne", "Stephanie Grimm", "Christina Fritsch", "Samantha Crane", "Helen Fucile", "Magan Whitaker", "Connie Powers", "Susan B Hart", "Jennifer Beuter", "Michael Bilbao", "Amanda Rose O'Neill", "Lori Shapiro", "Bonny Oh", "Jada White", "Krystal Bissoon"], "employee_agency": {"Nikki Teague": {"total": 221, "primary_agency": "ARES", "primary_pct": 95, "agency_counts": {"ARES": 209, "Appellate Land Svcs": 9, "Texas (ANT)": 2, "KDFM CT": 1}}, "Stephanie Grimm": {"total": 17, "primary_agency": "ARES", "primary_pct": 100, "agency_counts": {"ARES": 17}}, "Rebecca Wood": {"total": 65, "primary_agency": "ARES", "primary_pct": 88, "agency_counts": {"ARES": 57, "KDFM CT": 5, "Appellate Land Svcs": 3}}, "Chanda Johnson": {"total": 203, "primary_agency": "ARES", "primary_pct": 94, "agency_counts": {"ARES": 191, "Appellate Land Svcs": 9, "Texas (ANT)": 2, "KDFM CT": 1}}, "Amanda Rose O'Neill": {"total": 2, "primary_agency": "ARES", "primary_pct": 100, "agency_counts": {"ARES": 2}}, "Magan Whitaker": {"total": 6, "primary_agency": "ARES", "primary_pct": 67, "agency_counts": {"ARES": 4, "Texas (ANT)": 2}}, "Heidi Gemeling": {"total": 118, "primary_agency": "ARES", "primary_pct": 81, "agency_counts": {"ARES": 96, "KDFM CT": 22}}, "Marie Elaina Melman": {"total": 230, "primary_agency": "ARES", "primary_pct": 72, "agency_counts": {"ARES": 165, "Appellate Land Svcs": 42, "KDFM CT": 21, "Texas (ANT)": 2}}, "Lisa M. Davis": {"total": 142, "primary_agency": "ARES", "primary_pct": 65, "agency_counts": {"ARES": 93, "Appellate Land Svcs": 31, "KDFM CT": 18}}, "Erin Wynne": {"total": 52, "primary_agency": "ARES", "primary_pct": 79, "agency_counts": {"ARES": 41, "KDFM CT": 11}}, "Connie Powers": {"total": 6, "primary_agency": "Appellate Land Svcs", "primary_pct": 100, "agency_counts": {"Appellate Land Svcs": 6}}, "Samantha Crane": {"total": 13, "primary_agency": "ARES", "primary_pct": 100, "agency_counts": {"ARES": 13}}, "Bonny Oh": {"total": 1, "primary_agency": "Appellate Land Svcs", "primary_pct": 100, "agency_counts": {"Appellate Land Svcs": 1}}, "Helen Fucile": {"total": 7, "primary_agency": "Appellate Land Svcs", "primary_pct": 71, "agency_counts": {"Appellate Land Svcs": 5, "ARES": 1, "KDFM CT": 1}}, "Michael Bilbao": {"total": 3, "primary_agency": "Appellate Land Svcs", "primary_pct": 100, "agency_counts": {"Appellate Land Svcs": 3}}, "Susan B Hart": {"total": 5, "primary_agency": "Appellate Land Svcs", "primary_pct": 100, "agency_counts": {"Appellate Land Svcs": 5}}, "Christina Fritsch": {"total": 14, "primary_agency": "Appellate Land Svcs", "primary_pct": 100, "agency_counts": {"Appellate Land Svcs": 14}}, "Lori Shapiro": {"total": 2, "primary_agency": "Appellate Land Svcs", "primary_pct": 100, "agency_counts": {"Appellate Land Svcs": 2}}, "Jada White": {"total": 1, "primary_agency": "Appellate Land Svcs", "primary_pct": 100, "agency_counts": {"Appellate Land Svcs": 1}}, "Krystal Bissoon": {"total": 1, "primary_agency": "Appellate Land Svcs", "primary_pct": 100, "agency_counts": {"Appellate Land Svcs": 1}}, "Jennifer Beuter": {"total": 4, "primary_agency": "ARES", "primary_pct": 50, "agency_counts": {"ARES": 2, "KDFM CT": 1, "Appellate Land Svcs": 1}}}, "employee_agency_by_role": {"Nikki Teague": {"ARES": {"Order Opener": 68, "Title Review": 122, "CD Settlement Contact": 156, "File Closer": 185, "Settlement Closing": 6, "Escrow Officer": 2}, "Texas (ANT)": {"CD Settlement Contact": 2, "Order Opener": 1, "File Closer": 1}, "Appellate Land Svcs": {"Title Review": 9, "CD Settlement Contact": 9, "File Closer": 9, "Order Opener": 1}, "KDFM CT": {"File Closer": 1}}, "Stephanie Grimm": {"ARES": {"File Closer": 17, "Assistant": 1, "Order Opener": 1}}, "Rebecca Wood": {"ARES": {"Order Opener": 28, "Settlement Closing": 17, "File Closer": 38, "Title Review": 12, "CD Settlement Contact": 11, "Escrow Officer": 4}, "KDFM CT": {"File Closer": 4, "Order Opener": 2}, "Appellate Land Svcs": {"Order Opener": 3, "File Closer": 3, "CD Settlement Contact": 1}}, "Chanda Johnson": {"ARES": {"Assistant": 184, "Order Opener": 148}, "Texas (ANT)": {"Assistant": 2, "Order Opener": 1}, "Appellate Land Svcs": {"Assistant": 9, "Order Opener": 8}, "KDFM CT": {"Assistant": 1}}, "Amanda Rose O'Neill": {"ARES": {"Order Opener": 2}}, "Magan Whitaker": {"ARES": {"File Closer": 4}, "Texas (ANT)": {"Title Review": 2, "File Closer": 1}}, "Heidi Gemeling": {"ARES": {"Title Review": 94, "Assistant": 4, "Order Opener": 37}, "KDFM CT": {"Title Review": 21, "Assistant": 2, "Order Opener": 8}}, "Marie Elaina Melman": {"ARES": {"Assistant": 165}, "Texas (ANT)": {"Assistant": 2}, "Appellate Land Svcs": {"Assistant": 42}, "KDFM CT": {"Assistant": 21}}, "Lisa M. Davis": {"ARES": {"File Closer": 90, "Title Review": 6, "CD Settlement Contact": 27, "Order Opener": 11, "Settlement Closing": 29, "Escrow Officer": 54}, "Appellate Land Svcs": {"CD Settlement Contact": 29, "Order Opener": 29, "Settlement Closing": 13, "File Closer": 29, "Escrow Officer": 6}, "KDFM CT": {"CD Settlement Contact": 8, "Escrow Officer": 11, "File Closer": 16, "Settlement Closing": 4, "Order Opener": 2}}, "Erin Wynne": {"ARES": {"Order Opener": 41}, "KDFM CT": {"Order Opener": 11}}, "Connie Powers": {"Appellate Land Svcs": {"Title Review": 6}}, "Samantha Crane": {"ARES": {"Assistant": 13, "Order Opener": 7}}, "Bonny Oh": {"Appellate Land Svcs": {"Order Opener": 1}}, "Helen Fucile": {"Appellate Land Svcs": {"Assistant": 5}, "ARES": {"Assistant": 1}, "KDFM CT": {"Assistant": 1}}, "Michael Bilbao": {"Appellate Land Svcs": {"CD Settlement Contact": 2, "File Closer": 1, "Order Opener": 2}}, "Susan B Hart": {"Appellate Land Svcs": {"Title Review": 5}}, "Christina Fritsch": {"Appellate Land Svcs": {"CD Settlement Contact": 13, "Order Opener": 14, "Settlement Closing": 1}}, "Lori Shapiro": {"Appellate Land Svcs": {"Title Review": 2}}, "Jada White": {"Appellate Land Svcs": {"Order Opener": 1}}, "Krystal Bissoon": {"Appellate Land Svcs": {"CD Settlement Contact": 1}}, "Jennifer Beuter": {"ARES": {"Escrow Officer": 2, "File Closer": 2}, "KDFM CT": {"Escrow Officer": 1, "File Closer": 1}, "Appellate Land Svcs": {"File Closer": 1}}}};
+const AGENCY_COLORS = {
+  'ARES': '#378ADD',
+  'Appellate Land Svcs': '#1D9E75',
+  'KDFM CT': '#7F77DD',
+  'Texas (ANT)': '#BA7517'
+};
+const AGENCY_BG = {
+  'ARES': '#E6F1FB',
+  'Appellate Land Svcs': '#E1F5EE',
+  'KDFM CT': '#EEEDFE',
+  'Texas (ANT)': '#FAEEDA'
+};
+const AGENCY_FG = {
+  'ARES': '#0C447C',
+  'Appellate Land Svcs': '#085041',
+  'KDFM CT': '#3C3489',
+  'Texas (ANT)': '#633806'
+};
+
+function fmtMonth(s) {
+  const [y, m] = s.split('-');
+  return new Date(y, m-1).toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
+}
+
+const legendEl = document.getElementById('agency-legend');
+legendEl.innerHTML = DATA.agencies.map(a =>
+  `<span><span class="swatch" style="background:${AGENCY_COLORS[a]}"></span>${a}</span>`
+).join('');
+
+new Chart(document.getElementById('monthlyChart'), {
+  type: 'bar',
+  data: {
+    labels: DATA.months.map(fmtMonth),
+    datasets: DATA.agencies.map(a => ({
+      label: a,
+      data: DATA.monthly_by_agency[a],
+      backgroundColor: AGENCY_COLORS[a],
+      stack: 's'
+    }))
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    scales: {
+      x: { stacked: true, ticks: { color: '#888', font: { size: 11 } }, grid: { display: false } },
+      y: { stacked: true, ticks: { color: '#888' }, grid: { color: 'rgba(136,135,128,0.12)' } }
+    },
+    plugins: { legend: { display: false } }
+  }
+});
+
+const agencyTotals = DATA.agencies.map(a => ({
+  name: a,
+  total: DATA.monthly_by_agency[a].reduce((s, v) => s + v, 0),
+  months: DATA.monthly_by_agency[a].filter(v => v > 0).length
+}));
+agencyTotals.forEach(a => a.avg = (a.total / Math.max(a.months, 1)));
+
+new Chart(document.getElementById('agencyChart'), {
+  type: 'bar',
+  data: {
+    labels: agencyTotals.map(a => a.name),
+    datasets: [
+      { label: 'Total closed', data: agencyTotals.map(a => a.total), backgroundColor: '#378ADD', yAxisID: 'y' },
+      { label: 'Avg/month', data: agencyTotals.map(a => parseFloat(a.avg.toFixed(1))), backgroundColor: '#1D9E75', yAxisID: 'y1' }
+    ]
+  },
+  options: {
+    indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+    scales: {
+      y:  { ticks: { color: '#888', font: { size: 12 } }, grid: { display: false } },
+      x:  { position: 'top', ticks: { color: '#378ADD' }, grid: { color: 'rgba(136,135,128,0.10)' },
+            title: { display: true, text: 'Total closed', color: '#378ADD', font: { size: 11 } } },
+      y1: { display: false }
+    },
+    plugins: { legend: { display: false },
+      tooltip: { callbacks: { label: c => `${c.dataset.label}: ${c.parsed.x}` } } }
+  }
+});
+
+const statesSorted = Object.entries(DATA.state_patterns)
+  .map(([k, v]) => ({ state: k, ...v }))
+  .sort((a, b) => b.total - a.total);
+
+const top15 = statesSorted.slice(0, 15);
+new Chart(document.getElementById('stateChart'), {
+  type: 'bar',
+  data: {
+    labels: top15.map(s => s.state),
+    datasets: [
+      { label: 'Total closed', data: top15.map(s => s.total), backgroundColor: '#378ADD' },
+      { label: 'Avg/active month', data: top15.map(s => parseFloat(s.avg.toFixed(2))), backgroundColor: '#1D9E75' }
+    ]
+  },
+  options: {
+    indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+    scales: {
+      y: { ticks: { color: '#888', font: { size: 11 } }, grid: { display: false } },
+      x: { position: 'top', ticks: { color: '#888' }, grid: { color: 'rgba(136,135,128,0.10)' } }
+    },
+    plugins: { legend: { position: 'bottom', labels: { font: { size: 11 }, boxWidth: 10 } } }
+  }
+});
+
+const stateSelect = document.getElementById('stateSelect');
+const stateStats = document.getElementById('stateStats');
+const stateDetails = document.getElementById('stateDetails');
+statesSorted.forEach(s => {
+  const opt = document.createElement('option');
+  opt.value = s.state;
+  opt.textContent = `${s.state} (${s.total} closed)`;
+  stateSelect.appendChild(opt);
+});
+
+function renderState(stateCode) {
+  const p = DATA.state_patterns[stateCode];
+  stateStats.innerHTML = `<strong>${p.total}</strong> closed · active in <strong>${p.months}</strong> of 16 months · avg <strong>${p.avg.toFixed(2)}</strong>/active month`;
+  function blockHTML(title, data, cls) {
+    const entries = Object.entries(data);
+    if (entries.length === 0) return `<div class="state-detail-block"><h3>${title}</h3><p style="color:#aaa;font-size:13px;">No data</p></div>`;
+    const rows = entries.map(([k, v]) => `<div class="state-row"><span class="pill ${cls}">${k}</span><span>${v}</span></div>`).join('');
+    return `<div class="state-detail-block"><h3>${title}</h3>${rows}</div>`;
+  }
+  stateDetails.innerHTML =
+    `<div>${blockHTML('Transaction types', p.tx, 'p-tx')}${blockHTML('Workflows', p.wf, 'p-wf')}</div>` +
+    `<div>${blockHTML('Templates', p.tpl, 'p-tpl')}</div>`;
+}
+stateSelect.addEventListener('change', e => renderState(e.target.value));
+renderState(statesSorted[0].state);
+
+let employeeChart = null;
+function renderEmployees(role) {
+  let entries;
+  if (role === 'all') {
+    entries = Object.entries(DATA.employee_totals).map(([name, v]) => ({ name, count: v.total, avg: v.avg, months: v.months }));
+  } else {
+    const r = DATA.employee_role[role] || {};
+    entries = Object.entries(r).map(([name, count]) => ({ name, count, avg: null, months: null }));
+  }
+  entries.sort((a, b) => b.count - a.count);
+  entries = entries.slice(0, 15);
+  if (employeeChart) employeeChart.destroy();
+  employeeChart = new Chart(document.getElementById('employeeChart'), {
+    type: 'bar',
+    data: {
+      labels: entries.map(e => e.name),
+      datasets: [{
+        label: role === 'all' ? 'Total role-file pairings' : `${role} (closed files)`,
+        data: entries.map(e => e.count),
+        backgroundColor: '#534AB7'
+      }]
+    },
+    options: {
+      indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+      scales: {
+        y: { ticks: { color: '#888', font: { size: 12 } }, grid: { display: false } },
+        x: { position: 'top', ticks: { color: '#888' }, grid: { color: 'rgba(136,135,128,0.10)' } }
+      },
+      plugins: { legend: { display: false },
+        tooltip: { callbacks: { label: c => {
+          const e = entries[c.dataIndex];
+          if (e.avg) return `${e.count} pairings · ${e.avg.toFixed(1)}/mo over ${e.months} months`;
+          return `${e.count} files`;
+        } } } }
+    }
+  });
+}
+document.getElementById('roleSelect').addEventListener('change', e => renderEmployees(e.target.value));
+renderEmployees('all');
+
+const matrixRoles = ['Order Opener','File Closer','Escrow Officer','CD Settlement Contact','Title Review','Assistant','Settlement Closing'];
+const matrixPeople = Object.entries(DATA.employee_totals).sort((a, b) => b[1].total - a[1].total).slice(0, 12).map(e => e[0]);
+let headerHTML = '<thead><tr><th>Employee</th>' + matrixRoles.map(r => `<th class="num">${r}</th>`).join('') + '<th class="num">Total</th></tr></thead><tbody>';
+let bodyHTML = '';
+matrixPeople.forEach(p => {
+  let total = 0;
+  let cells = matrixRoles.map(r => {
+    const v = (DATA.employee_role[r] || {})[p] || 0;
+    total += v;
+    return `<td class="num">${v || '<span style="color:#ccc">·</span>'}</td>`;
+  }).join('');
+  bodyHTML += `<tr><td><strong>${p}</strong></td>${cells}<td class="num"><strong>${total}</strong></td></tr>`;
+});
+document.getElementById('matrixTable').innerHTML = headerHTML + bodyHTML + '</tbody>';
+
+const covMode = document.getElementById('covMode');
+const covSelect = document.getElementById('covSelect');
+const covSelectLabel = document.getElementById('covSelectLabel');
+const covStats = document.getElementById('covStats');
+const covRoles = document.getElementById('coverageRoleBreakdown');
+let coverageChart = null;
+
+function populateCovSelect(mode) {
+  covSelect.innerHTML = '';
+  if (mode === 'byEmployee') {
+    covSelectLabel.textContent = 'Employee:';
+    DATA.employee_order.forEach(p => {
+      const opt = document.createElement('option');
+      opt.value = p;
+      opt.textContent = `${p} (${DATA.employee_state[p].total} files)`;
+      covSelect.appendChild(opt);
+    });
+  } else {
+    covSelectLabel.textContent = 'State:';
+    statesSorted.forEach(s => {
+      const opt = document.createElement('option');
+      opt.value = s.state;
+      opt.textContent = `${s.state} (${s.total} closed)`;
+      covSelect.appendChild(opt);
+    });
+  }
+}
+
+function renderCoverage() {
+  const mode = covMode.value;
+  const selection = covSelect.value;
+  if (coverageChart) coverageChart.destroy();
+  covRoles.innerHTML = '';
+
+  if (mode === 'byEmployee') {
+    const emp = DATA.employee_state[selection];
+    if (!emp) return;
+    const ag = DATA.employee_agency[selection];
+    const agencyMix = Object.entries(ag.agency_counts).map(([a, c]) =>
+      `<span class="pill" style="background:${AGENCY_BG[a] || '#eee'};color:${AGENCY_FG[a] || '#333'};margin-right:4px;">${a}: ${c}</span>`
+    ).join('');
+    covStats.innerHTML = `<strong>${emp.total}</strong> files across <strong>${emp.state_count}</strong> states · primarily <strong>${ag.primary_agency}</strong> (${ag.primary_pct}%) <span style="margin-left:8px;">${agencyMix}</span>`;
+    const states = Object.entries(emp.states);
+    coverageChart = new Chart(document.getElementById('coverageChart'), {
+      type: 'bar',
+      data: {
+        labels: states.map(s => s[0]),
+        datasets: [{ label: 'Files', data: states.map(s => s[1]), backgroundColor: '#534AB7' }]
+      },
+      options: {
+        indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+        scales: {
+          y: { ticks: { color: '#888', font: { size: 11 } }, grid: { display: false } },
+          x: { position: 'top', ticks: { color: '#888' }, grid: { color: 'rgba(136,135,128,0.10)' } }
+        },
+        plugins: { legend: { display: false } }
+      }
+    });
+
+    const byState = DATA.employee_state_by_role[selection] || {};
+    let detail = '<h3 style="font-size:12px;font-weight:500;margin:0 0 6px;color:#555;text-transform:uppercase;letter-spacing:0.04em;">Role mix per state</h3>';
+    detail += '<div style="overflow-x:auto;"><table>';
+    detail += '<thead><tr><th>State</th><th class="num">Files</th><th class="num">Roles played</th></tr></thead><tbody>';
+    states.forEach(([st, n]) => {
+      const roles = byState[st] || {};
+      const roleStr = Object.entries(roles).map(([r, c]) => `<span class="pill p-wf" style="margin-right:4px;">${r} (${c})</span>`).join('');
+      detail += `<tr><td><strong>${st}</strong></td><td class="num">${n}</td><td>${roleStr}</td></tr>`;
+    });
+    detail += '</tbody></table></div>';
+    covRoles.innerHTML = detail;
+  } else {
+    const stateCode = selection;
+    const peopleInState = [];
+    DATA.employee_order.forEach(p => {
+      const c = (DATA.employee_state[p].states || {})[stateCode] || 0;
+      if (c > 0) peopleInState.push({ name: p, count: c, roles: (DATA.employee_state_by_role[p] || {})[stateCode] || {} });
+    });
+    peopleInState.sort((a, b) => b.count - a.count);
+    const total = peopleInState.reduce((s, p) => s + p.count, 0);
+    covStats.innerHTML = `<strong>${peopleInState.length}</strong> people worked <strong>${stateCode}</strong> (${total} person-file involvements across ${DATA.state_patterns[stateCode].total} files)`;
+    coverageChart = new Chart(document.getElementById('coverageChart'), {
+      type: 'bar',
+      data: {
+        labels: peopleInState.map(p => p.name),
+        datasets: [{ label: 'Files in state', data: peopleInState.map(p => p.count), backgroundColor: '#1D9E75' }]
+      },
+      options: {
+        indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+        scales: {
+          y: { ticks: { color: '#888', font: { size: 11 } }, grid: { display: false } },
+          x: { position: 'top', ticks: { color: '#888' }, grid: { color: 'rgba(136,135,128,0.10)' } }
+        },
+        plugins: { legend: { display: false } }
+      }
+    });
+
+    let detail = '<h3 style="font-size:12px;font-weight:500;margin:0 0 6px;color:#555;text-transform:uppercase;letter-spacing:0.04em;">Role mix per person in this state</h3>';
+    detail += '<div style="overflow-x:auto;"><table>';
+    detail += '<thead><tr><th>Employee</th><th class="num">Files</th><th class="num">Roles played</th></tr></thead><tbody>';
+    peopleInState.forEach(p => {
+      const roleStr = Object.entries(p.roles).map(([r, c]) => `<span class="pill p-wf" style="margin-right:4px;">${r} (${c})</span>`).join('');
+      detail += `<tr><td><strong>${p.name}</strong></td><td class="num">${p.count}</td><td>${roleStr}</td></tr>`;
+    });
+    detail += '</tbody></table></div>';
+    covRoles.innerHTML = detail;
+  }
+}
+
+covMode.addEventListener('change', () => { populateCovSelect(covMode.value); renderCoverage(); });
+covSelect.addEventListener('change', renderCoverage);
+populateCovSelect('byEmployee');
+renderCoverage();
+
+const heatStates = statesSorted.slice(0, 12).map(s => s.state);
+const heatEmps = DATA.employee_order.slice(0, 15);
+let heatMax = 0;
+heatEmps.forEach(p => {
+  heatStates.forEach(s => {
+    const v = (DATA.employee_state[p].states || {})[s] || 0;
+    if (v > heatMax) heatMax = v;
+  });
+});
+function heatColor(v) {
+  if (!v) return 'transparent';
+  const pct = Math.min(v / heatMax, 1);
+  if (pct < 0.1)  return '#E6F1FB';
+  if (pct < 0.25) return '#B5D4F4';
+  if (pct < 0.5)  return '#85B7EB';
+  if (pct < 0.75) return '#378ADD';
+  return '#185FA5';
+}
+function heatText(v) {
+  if (!v) return '#ccc';
+  const pct = v / heatMax;
+  return pct >= 0.5 ? '#fff' : '#0C447C';
+}
+const AGENCY_BG_HEAT = AGENCY_BG;
+const AGENCY_FG_HEAT = AGENCY_FG;
+let heatHTML = '<thead><tr><th>Employee</th><th class="num" style="font-size:11px;">Primary agency</th>';
+heatStates.forEach(s => { heatHTML += `<th class="num" style="font-size:11px;">${s}</th>`; });
+heatHTML += '<th class="num">Total</th><th class="num"># states</th></tr></thead><tbody>';
+heatEmps.forEach(p => {
+  const ag = DATA.employee_agency[p];
+  heatHTML += `<tr><td><strong>${p}</strong></td>`;
+  heatHTML += `<td class="num" style="background:${AGENCY_BG[ag.primary_agency]};color:${AGENCY_FG[ag.primary_agency]};font-size:11px;font-weight:500;">${ag.primary_agency} <span style="opacity:0.7;">${ag.primary_pct}%</span></td>`;
+  heatStates.forEach(s => {
+    const v = (DATA.employee_state[p].states || {})[s] || 0;
+    const bg = heatColor(v);
+    const fg = heatText(v);
+    heatHTML += `<td class="num" style="background:${bg};color:${fg};font-weight:${v >= heatMax * 0.5 ? 500 : 400};">${v || '·'}</td>`;
+  });
+  heatHTML += `<td class="num"><strong>${DATA.employee_state[p].total}</strong></td>`;
+  heatHTML += `<td class="num">${DATA.employee_state[p].state_count}</td></tr>`;
+});
+document.getElementById('heatmapTable').innerHTML = heatHTML + '</tbody>';
+
+const empAgencyTop = DATA.employee_order.slice(0, 15);
+const empAgencyData = {
+  labels: empAgencyTop,
+  datasets: DATA.agencies.map(a => ({
+    label: a,
+    data: empAgencyTop.map(p => (DATA.employee_agency[p].agency_counts || {})[a] || 0),
+    backgroundColor: AGENCY_COLORS[a],
+    stack: 's'
+  }))
+};
+new Chart(document.getElementById('empAgencyChart'), {
+  type: 'bar',
+  data: empAgencyData,
+  options: {
+    indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+    scales: {
+      y: { stacked: true, ticks: { color: '#888', font: { size: 12 } }, grid: { display: false } },
+      x: { stacked: true, position: 'top', ticks: { color: '#888' }, grid: { color: 'rgba(136,135,128,0.10)' } }
+    },
+    plugins: {
+      legend: { position: 'bottom', labels: { font: { size: 11 }, boxWidth: 10 } },
+      tooltip: { callbacks: { label: c => `${c.dataset.label}: ${c.parsed.x} files` } }
+    }
+  }
+});
+</script>
+</body>
+</html>
