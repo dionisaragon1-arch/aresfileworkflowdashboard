@@ -1,0 +1,995 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ARES — Executive Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,500;9..144,600&family=JetBrains+Mono:wght@400;500&family=Inter+Tight:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/topojson/3.0.2/topojson.min.js"></script>
+<style>
+  :root{
+    --bg:#f7f7f5;
+    --panel:#ffffff;
+    --panel-2:#fafafa;
+    --line:#ececec;
+    --line-2:#d8d8d4;
+    --ink:#1a1a1a;
+    --ink-dim:#666666;
+    --ink-mute:#888888;
+    --accent:#378ADD;
+    --accent-2:#85B7EB;
+    --green:#1D9E75;
+    --red:#A32D2D;
+    --red-soft:#E24B4A;
+    --blue:#378ADD;
+    --purple:#534AB7;
+    --amber:#BA7517;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{background:var(--bg);color:var(--ink);font-family:-apple-system,"Segoe UI",Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased;line-height:1.5}
+  body{padding:28px 24px 48px;max-width:1280px;margin:0 auto}
+
+  .topbar{display:flex;align-items:flex-end;justify-content:space-between;padding-bottom:20px;border-bottom:1px solid var(--line);margin-bottom:24px;flex-wrap:wrap;gap:12px}
+  .brand{display:flex;flex-direction:column;gap:4px}
+  .brand .crest{display:flex;align-items:center;gap:12px}
+  .seal{width:38px;height:38px;border:1px solid var(--accent);border-radius:50%;display:flex;align-items:center;justify-content:center;color:var(--accent);font-size:18px;font-weight:500;background:#fff}
+  .brand h1{font-weight:500;font-size:26px;letter-spacing:-0.3px;color:var(--ink);margin:0}
+  .brand h1 em{font-style:normal;color:var(--ink-dim);font-weight:400}
+  .brand .sub{font-size:13px;color:var(--ink-dim);font-weight:400;padding-left:50px;margin-top:-2px}
+  .meta{text-align:right;font-size:13px;color:var(--ink-dim);line-height:1.6}
+  .meta .pulse{display:inline-flex;align-items:center;gap:6px;color:var(--green);font-weight:500}
+  .pulse::before{content:'';width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 0 0 rgba(29,158,117,0.4);animation:pulse 2s infinite}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(29,158,117,0.4)}70%{box-shadow:0 0 0 8px rgba(29,158,117,0)}100%{box-shadow:0 0 0 0 rgba(29,158,117,0)}}
+
+  .section{margin-bottom:28px}
+  .section-head{display:flex;align-items:baseline;gap:14px;margin-bottom:14px}
+  .section-head .num{font-size:11px;color:var(--accent);letter-spacing:0.1em;font-weight:600;text-transform:uppercase}
+  .section-head h2{font-weight:500;font-size:18px;color:var(--ink);letter-spacing:-0.2px}
+  .section-head .rule{flex:1;height:1px;background:var(--line)}
+  .section-head .note{font-size:11px;color:var(--ink-mute);letter-spacing:0.04em;text-transform:uppercase}
+
+  .kpi-strip{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-bottom:20px}
+  .kpi{background:var(--panel);padding:16px 18px;position:relative;min-height:110px;display:flex;flex-direction:column;justify-content:space-between;border:1px solid var(--line);border-radius:10px}
+  .kpi .label{font-size:12px;letter-spacing:0.04em;text-transform:uppercase;color:var(--ink-dim);font-weight:500}
+  .kpi .value{font-size:32px;font-weight:500;letter-spacing:-0.5px;color:var(--ink);line-height:1.1;font-variant-numeric:tabular-nums;margin-top:6px}
+  .kpi .value .unit{font-size:18px;color:var(--ink-mute);margin-left:4px;font-weight:400}
+  .kpi .foot{display:flex;justify-content:space-between;align-items:center;font-size:11px;color:var(--ink-mute);margin-top:8px}
+  .kpi .delta{font-weight:500}
+  .kpi .delta.up{color:var(--green)}
+  .kpi .delta.down{color:var(--red)}
+  .kpi .delta.warn{color:var(--amber)}
+  .kpi .corner{display:none}
+
+  .critical{background:#FCEBEB;border:1px solid rgba(163,45,45,0.25);border-radius:10px;padding:14px 18px;display:flex;align-items:center;gap:18px;font-size:13px}
+  .critical .tag{font-size:10px;letter-spacing:0.12em;color:var(--red);padding:4px 10px;border:1px solid var(--red);border-radius:4px;font-weight:600;text-transform:uppercase}
+  .critical .msg{color:var(--ink);flex:1;line-height:1.55}
+  .critical strong{color:var(--red);font-weight:600;font-size:14px}
+
+  .grid-12{display:grid;grid-template-columns:repeat(12,1fr);gap:16px}
+  .span-8{grid-column:span 8}
+  .span-7{grid-column:span 7}
+  .span-6{grid-column:span 6}
+  .span-5{grid-column:span 5}
+  .span-4{grid-column:span 4}
+  .span-3{grid-column:span 3}
+
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:18px 20px;position:relative}
+  .card .ttl{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid var(--line)}
+  .card .ttl h3{font-size:16px;font-weight:500;color:var(--ink);letter-spacing:-0.2px}
+  .card .ttl h3 em{font-style:normal;color:var(--ink-mute);font-weight:400;margin-left:6px;font-size:14px}
+  .card .ttl .tag{font-size:11px;color:var(--ink-mute);letter-spacing:0.04em;text-transform:uppercase}
+
+  .map-wrap{position:relative;width:100%;aspect-ratio:16/9;background:transparent}
+  .legend{display:flex;align-items:center;gap:10px;font-size:11px;color:var(--ink-dim);margin-top:8px}
+  .legend .scale{display:flex;height:8px;width:120px;border-radius:2px;overflow:hidden}
+  .legend .scale span{flex:1;height:100%}
+
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th{text-align:left;font-weight:500;font-size:11px;text-transform:uppercase;letter-spacing:0.04em;color:#555;padding:9px 10px;background:#fafafa;border-bottom:1px solid var(--line)}
+  td{padding:9px 10px;border-bottom:1px solid #f0f0f0;color:var(--ink)}
+  tr:last-child td{border-bottom:none}
+  td.num{text-align:right;font-variant-numeric:tabular-nums;font-size:13px}
+  td.state-cell{font-weight:600;color:var(--accent);letter-spacing:0.04em}
+  .bar-cell{position:relative}
+  .bar-cell .bar{position:absolute;left:10px;bottom:4px;height:2px;background:var(--accent);opacity:0.4;border-radius:1px}
+
+  .chips{display:flex;flex-direction:column;gap:12px}
+  .chip{display:flex;align-items:center;gap:12px}
+  .chip .dot{width:9px;height:9px;border-radius:50%}
+  .chip .name{flex:1;font-size:13px;color:var(--ink)}
+  .chip .count{font-size:12px;color:var(--ink-mute);font-variant-numeric:tabular-nums}
+  .chip-bar{flex:2;height:6px;background:#f0f0f0;border-radius:3px;overflow:hidden;position:relative}
+  .chip-bar .fill{height:100%;border-radius:3px}
+
+  .srcs{display:flex;flex-direction:column;gap:2px}
+  .src{display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid #f5f5f3}
+  .src:last-child{border-bottom:none}
+  .src .nm{font-size:13px;color:var(--ink);max-width:70%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .src .ct{font-size:12px;color:var(--accent);font-weight:600;font-variant-numeric:tabular-nums}
+
+  .pressure{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+  .p-cell{background:#fafafa;border:1px solid var(--line);border-radius:8px;padding:14px 10px;text-align:center}
+  .p-cell .v{font-size:24px;color:var(--ink);font-weight:500;line-height:1;font-variant-numeric:tabular-nums}
+  .p-cell .l{font-size:10px;color:var(--ink-dim);letter-spacing:0.06em;text-transform:uppercase;margin-top:6px;font-weight:500}
+  .p-cell.alert{background:#FCEBEB;border-color:#F7C1C1}
+  .p-cell.alert .v{color:var(--red)}
+  .p-cell.warn{background:#FAEEDA;border-color:#FAC775}
+  .p-cell.warn .v{color:var(--amber)}
+  .p-cell.ok{background:#EAF3DE;border-color:#C0DD97}
+  .p-cell.ok .v{color:#3B6D11}
+
+  .foot-strip{margin-top:32px;padding-top:18px;border-top:1px solid var(--line);display:flex;justify-content:space-between;font-size:11px;color:var(--ink-mute);letter-spacing:0.04em;text-transform:uppercase;flex-wrap:wrap;gap:8px}
+
+  .tip{position:absolute;background:#fff;border:1px solid var(--accent);box-shadow:0 4px 12px rgba(0,0,0,0.08);padding:8px 12px;border-radius:6px;font-size:12px;color:var(--ink);pointer-events:none;opacity:0;transition:opacity 0.15s;z-index:100;white-space:nowrap}
+  .tip strong{color:var(--accent);font-size:13px;font-weight:600;display:block;margin-bottom:2px}
+
+  .filter-row{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap}
+  .filt{background:#fff;border:1px solid var(--line-2);color:var(--ink-dim);padding:6px 12px;font-size:11px;letter-spacing:0.04em;text-transform:uppercase;cursor:pointer;border-radius:6px;transition:all 0.15s;font-weight:500}
+  .filt:hover{border-color:var(--accent);color:var(--accent)}
+  .filt.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+  .filt .ct{margin-left:6px;opacity:0.7;font-variant-numeric:tabular-nums}
+
+  .agg-bar{background:#fafafa;border:1px solid var(--line);padding:14px 16px;margin-bottom:16px;border-radius:8px}
+  .agg-row{display:grid;grid-template-columns:130px 1fr 80px;gap:12px;align-items:center;font-size:12px;padding:5px 0}
+  .agg-lbl{color:var(--ink-dim);font-size:12px}
+  .agg-track{height:6px;background:#ececec;position:relative;border-radius:3px;overflow:hidden}
+  .agg-fill{position:absolute;left:0;top:0;height:100%;border-radius:3px}
+  .agg-val{font-size:12px;color:var(--ink);text-align:right;font-variant-numeric:tabular-nums}
+  .agg-val .muted{color:var(--ink-mute)}
+
+  .matrix-head{display:grid;grid-template-columns:110px repeat(5,1fr) 70px;gap:4px;padding:9px 8px;font-size:10px;letter-spacing:0.06em;color:var(--ink-dim);text-transform:uppercase;font-weight:500;border-bottom:1px solid var(--line);border-top:1px solid var(--line);background:#fafafa;border-radius:6px 6px 0 0}
+  .matrix-head.d-head{grid-template-columns:100px 70px repeat(4,1fr) 70px}
+  .matrix-head.o-head{grid-template-columns:96px 64px repeat(5,1fr) 64px}
+  .matrix-head > div{text-align:center}
+  .matrix-head > div:first-child{text-align:left}
+  .matrix-head > div:last-child{text-align:right}
+
+  .matrix{max-height:340px;overflow-y:auto;padding-right:4px}
+  .matrix-row{display:grid;grid-template-columns:110px repeat(5,1fr) 70px;gap:4px;padding:7px 8px;border-bottom:1px solid #f5f5f3;align-items:center;font-size:12px;transition:background 0.1s}
+  .matrix-row.d-row{grid-template-columns:100px 70px repeat(4,1fr) 70px}
+  .matrix-row.o-row{grid-template-columns:96px 64px repeat(5,1fr) 64px}
+  .matrix-row:hover{background:#f7faff}
+  .matrix-row.hidden{display:none}
+  .mx-ord{font-size:11px;color:var(--ink);display:flex;align-items:center;gap:6px;font-variant-numeric:tabular-nums}
+  .mx-ord .mx-st{color:var(--accent);font-weight:600;font-size:10px;letter-spacing:0.04em}
+  .mx-closer{font-size:11px;color:var(--ink-dim);text-align:center}
+  .mx-closer.unassigned{color:var(--red);font-style:italic}
+  .mx-cell{display:flex;align-items:center;justify-content:center;padding:4px;border-radius:4px;cursor:default;position:relative}
+  .mx-cell.done{background:#E1F5EE;border:1px solid #9FE1CB}
+  .mx-cell.pend{background:#fafafa;border:1px solid #f0f0f0}
+  .mx-cell .icon{font-size:12px;line-height:1;font-weight:600}
+  .mx-cell.done .icon{color:#0F6E56}
+  .mx-cell.pend .icon{color:#bbbbbb}
+  .mx-close{font-size:10px;text-align:right;font-variant-numeric:tabular-nums;font-weight:500}
+  .mx-close.past{color:var(--red)}
+  .mx-close.soon{color:var(--amber)}
+  .mx-close.ok{color:var(--green)}
+
+  .matrix-legend{display:flex;gap:18px;margin-top:14px;padding-top:14px;border-top:1px solid var(--line);font-size:11px;color:var(--ink-dim);align-items:center}
+  .matrix-legend .dot{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:middle}
+  .matrix-legend .dot.done{background:#E1F5EE;border:1px solid #5DCAA5}
+  .matrix-legend .dot.pend{background:#fafafa;border:1px solid var(--line-2)}
+
+  .mx-tip{position:fixed;background:#fff;border:1px solid var(--accent);box-shadow:0 4px 12px rgba(0,0,0,0.1);padding:8px 12px;font-size:12px;color:var(--ink);pointer-events:none;z-index:1000;border-radius:6px;display:none}
+  .mx-tip b{color:var(--accent);font-size:13px;font-weight:600;display:block;margin-bottom:2px}
+
+  .matrix::-webkit-scrollbar{width:6px}
+  .matrix::-webkit-scrollbar-track{background:transparent}
+  .matrix::-webkit-scrollbar-thumb{background:var(--line-2);border-radius:3px}
+  .matrix::-webkit-scrollbar-thumb:hover{background:var(--accent)}
+
+  .ord-row{display:none}
+
+  .aging{display:flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;height:48px;margin-bottom:14px}
+  .aging .ab{display:flex;flex-direction:column;justify-content:center;align-items:center;color:#fff;font-size:11px;padding:4px 6px;text-align:center;line-height:1.3;border-right:1px solid rgba(0,0,0,0.1)}
+  .aging .ab:last-child{border-right:none}
+  .aging .ab b{font-weight:600;font-size:14px}
+  .aging-legend{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;font-size:10px;color:var(--ink-dim);text-align:center}
+
+  /* Overdue treemap legacy */
+  .overdue-tasks{display:flex;flex-direction:column;gap:10px}
+  .ot{display:grid;grid-template-columns:1fr auto;gap:12px;align-items:center}
+  .ot .label{font-size:13px;color:var(--ink)}
+  .ot .count{font-size:11px;color:var(--ink-dim)}
+  .ot-bar{grid-column:1 / -1;height:3px;background:#f0f0f0;position:relative;border-radius:1px;overflow:hidden}
+  .ot-bar .fill{position:absolute;left:0;top:0;height:100%;background:linear-gradient(90deg,var(--red),var(--amber))}
+
+  @media (max-width:1100px){
+    .kpi-strip{grid-template-columns:1fr}
+    .grid-12 > *{grid-column:span 12}
+  }
+</style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<div class="topbar">
+  <div class="brand">
+    <div class="crest">
+      <div class="seal">A</div>
+      <h1>Appellate Real Estate Solutions <em>— Executive Brief</em></h1>
+    </div>
+    <div class="sub">Settlement Operations · Pipeline · Risk</div>
+  </div>
+  <div class="meta">
+    <div class="pulse">Current Month</div>
+    <div>New Open Orders</div>
+    <div>Orders Disbursing This Month</div>
+  </div>
+</div>
+
+<!-- ============ HEADLINE KPIs ============ -->
+<div class="section">
+  <div class="section-head">
+    <span class="num">01</span>
+    <h2>Performance at a glance</h2>
+    <span class="rule"></span>
+    <span class="note">Month-to-date</span>
+  </div>
+
+  <div class="kpi-strip">
+    <div class="kpi">
+      <div class="corner"></div>
+      <div class="label">Realized revenue</div>
+      <div class="value">$31,064</div>
+      <div class="foot">
+        <span>14 orders disbursed</span>
+        <span class="delta up">▲ MTD</span>
+      </div>
+    </div>
+    <div class="kpi">
+      <div class="corner"></div>
+      <div class="label">Upcoming revenue</div>
+      <div class="value">$70,244</div>
+      <div class="foot">
+        <span>37 orders in transit</span>
+        <span class="delta up">+2.26× realized</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ PIPELINE GEOGRAPHY + REVENUE ============ -->
+<div class="section">
+  <div class="section-head">
+    <span class="num">02</span>
+    <h2>Revenue geography &amp; trajectory</h2>
+    <span class="rule"></span>
+    <span class="note">Realized · Upcoming · Pipeline</span>
+  </div>
+
+  <div class="grid-12">
+    <!-- REALIZED MAP -->
+    <div class="card span-6">
+      <div class="ttl">
+        <h3>Realized revenue by state</h3>
+        <span class="tag">USD · 9 disbursed orders</span>
+      </div>
+      <div class="map-wrap" id="map"></div>
+      <div class="legend">
+        <span>Low</span>
+        <div class="scale">
+          <span style="background:#E6F1FB"></span>
+          <span style="background:#B5D4F4"></span>
+          <span style="background:#85B7EB"></span>
+          <span style="background:#378ADD"></span>
+          <span style="background:#185FA5"></span>
+        </div>
+        <span>High · $5.1K</span>
+      </div>
+      <div style="margin-top:6px;font-size:11px;color:var(--ink-mute)">FL &amp; NC lead · 55% of mapped revenue</div>
+    </div>
+
+    <!-- UPCOMING MAP -->
+    <div class="card span-6">
+      <div class="ttl">
+        <h3>Upcoming revenue by state</h3>
+        <span class="tag">USD · 37 open orders</span>
+      </div>
+      <div class="map-wrap" id="mapUpcoming"></div>
+      <div class="legend">
+        <span>Low</span>
+        <div class="scale">
+          <span style="background:#EAF3DE"></span>
+          <span style="background:#C0DD97"></span>
+          <span style="background:#97C459"></span>
+          <span style="background:#3B6D11"></span>
+          <span style="background:#173404"></span>
+        </div>
+        <span>High · $24.6K</span>
+      </div>
+      <div style="margin-top:6px;font-size:11px;color:var(--ink-mute)">FL leads · 35% of upcoming revenue</div>
+    </div>
+
+    <!-- REVENUE STACK -->
+    <div class="card span-12">
+      <div class="ttl">
+        <h3>Revenue stack</h3>
+        <span class="tag">Realized · Upcoming</span>
+      </div>
+      <div style="position:relative;height:260px">
+        <canvas id="revenueChart" role="img" aria-label="Stacked bar chart comparing realized revenue of $31,064 from 14 orders to upcoming revenue of $70,244 from 37 orders, broken out by transaction type."></canvas>
+      </div>
+      <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--line);font-size:11px;color:var(--ink-dim);letter-spacing:0.04em;display:flex;justify-content:space-between">
+        <span>Total commit: <span style="color:var(--accent);font-weight:600">$101,308</span></span>
+        <span>Avg / order: <span style="color:var(--ink);font-weight:600">$1,986</span></span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ PIPELINE BREAKDOWN ============ -->
+<div class="section">
+  <div class="section-head">
+    <span class="num">03</span>
+    <h2>Pipeline composition</h2>
+    <span class="rule"></span>
+    <span class="note">Source · Type · Geography</span>
+  </div>
+
+  <div class="grid-12">
+    <!-- STATE PIPELINE TABLE -->
+    <div class="card span-5">
+      <div class="ttl">
+        <h3>Top markets</h3>
+        <span class="tag">By upcoming revenue</span>
+      </div>
+      <table>
+        <thead>
+          <tr><th>State</th><th style="text-align:right">Orders</th><th style="text-align:right">Upcoming revenue</th></tr>
+        </thead>
+        <tbody id="stateTable"></tbody>
+      </table>
+    </div>
+
+    <!-- TRANSACTION TYPE -->
+    <div class="card span-4">
+      <div class="ttl">
+        <h3>Transaction mix</h3>
+        <span class="tag">Open orders</span>
+      </div>
+      <div class="chips" style="margin-top:8px">
+        <div class="chip">
+          <div class="dot" style="background:var(--green)"></div>
+          <div class="name">Purchase</div>
+          <div class="chip-bar"><div class="fill" style="background:var(--green);width:66.7%"></div></div>
+          <div class="count">34 · 67%</div>
+        </div>
+        <div class="chip">
+          <div class="dot" style="background:var(--blue)"></div>
+          <div class="name">Refinance</div>
+          <div class="chip-bar"><div class="fill" style="background:var(--blue);width:23.5%"></div></div>
+          <div class="count">12 · 24%</div>
+        </div>
+        <div class="chip">
+          <div class="dot" style="background:var(--amber)"></div>
+          <div class="name">Reverse</div>
+          <div class="chip-bar"><div class="fill" style="background:var(--amber);width:9.8%"></div></div>
+          <div class="count">5 · 10%</div>
+        </div>
+      </div>
+
+      <div style="margin-top:24px;padding-top:18px;border-top:1px solid var(--line)">
+        <div style="font-size:10px;letter-spacing:0.2em;text-transform:uppercase;color:var(--ink-dim);margin-bottom:14px">Closing pressure · 44 deals</div>
+        <div class="pressure">
+          <div class="p-cell alert"><div class="v">26</div><div class="l">Past due</div></div>
+          <div class="p-cell warn"><div class="v">6</div><div class="l">This week</div></div>
+          <div class="p-cell ok"><div class="v">5</div><div class="l">Next week</div></div>
+          <div class="p-cell ok"><div class="v">7</div><div class="l">2–4 wks</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SOURCES -->
+    <div class="card span-3">
+      <div class="ttl">
+        <h3>Top sources</h3>
+        <span class="tag">Origin</span>
+      </div>
+      <div class="srcs">
+        <div class="src"><span class="nm">Xome Inc.</span><span class="ct">18</span></div>
+        <div class="src"><span class="nm">Opulence Funding</span><span class="ct">04</span></div>
+        <div class="src"><span class="nm">HardMoneyMan</span><span class="ct">04</span></div>
+        <div class="src"><span class="nm">Citizens Bank</span><span class="ct">01</span></div>
+        <div class="src"><span class="nm">Commercial Lender</span><span class="ct">01</span></div>
+        <div class="src"><span class="nm">Oxford Title Grp</span><span class="ct">01</span></div>
+        <div class="src" style="border-top:1px solid var(--line);margin-top:6px;padding-top:14px"><span class="nm" style="color:var(--accent)">Other (singles)</span><span class="ct">22</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ OPERATIONAL RISK ============ -->
+<div class="section">
+  <div class="section-head">
+    <span class="num">04</span>
+    <h2>Operational risk &amp; this month's closings</h2>
+    <span class="rule"></span>
+    <span class="note">Tasks · Aging · Closings</span>
+  </div>
+
+  <div class="grid-12">
+    <!-- OPEN ORDERS TASK MATRIX -->
+    <div class="card span-6">
+      <div class="ttl">
+        <h3>Open orders — critical task status</h3>
+        <span class="tag">44 orders · 5 tasks · by reviewer</span>
+      </div>
+
+      <!-- Toggle filters -->
+      <div class="filter-row">
+        <button class="filt active" data-filter="all">All <span class="ct">44</span></button>
+        <button class="filt" data-filter="pending">Pending only <span class="ct" id="ctPending">37</span></button>
+        <button class="filt" data-filter="any-done">Any complete <span class="ct" id="ctAny">7</span></button>
+        <button class="filt" data-filter="past-due">Past close <span class="ct" id="ctPast">26</span></button>
+        <button class="filt" data-filter="heidi">Heidi <span class="ct">14</span></button>
+        <button class="filt" data-filter="nikki">Nikki <span class="ct">11</span></button>
+        <button class="filt" data-filter="unassigned">Unassigned <span class="ct">19</span></button>
+      </div>
+
+      <!-- Aggregate completion bar -->
+      <div class="agg-bar">
+        <div class="agg-row">
+          <span class="agg-lbl">EMD Receipt</span>
+          <div class="agg-track"><div class="agg-fill" style="width:15.9%;background:var(--green)"></div></div>
+          <span class="agg-val">7/44 <span class="muted">· 16%</span></span>
+        </div>
+        <div class="agg-row">
+          <span class="agg-lbl">Title Order</span>
+          <div class="agg-track"><div class="agg-fill" style="width:0%;background:var(--green)"></div></div>
+          <span class="agg-val">0/44 <span class="muted">· 0%</span></span>
+        </div>
+        <div class="agg-row">
+          <span class="agg-lbl">Send Questionnaire</span>
+          <div class="agg-track"><div class="agg-fill" style="width:0%;background:var(--green)"></div></div>
+          <span class="agg-val">0/44 <span class="muted">· 0%</span></span>
+        </div>
+        <div class="agg-row">
+          <span class="agg-lbl">Receive Quest.</span>
+          <div class="agg-track"><div class="agg-fill" style="width:0%;background:var(--green)"></div></div>
+          <span class="agg-val">0/44 <span class="muted">· 0%</span></span>
+        </div>
+        <div class="agg-row">
+          <span class="agg-lbl">Lender Contact</span>
+          <div class="agg-track"><div class="agg-fill" style="width:0%;background:var(--green)"></div></div>
+          <span class="agg-val">0/44 <span class="muted">· 0%</span></span>
+        </div>
+      </div>
+
+      <!-- Matrix header -->
+      <div class="matrix-head o-head">
+        <div>Order</div>
+        <div>Reviewer</div>
+        <div title="Upload EMD Receipt to client">EMD</div>
+        <div title="Confirm Title Ordered">TTL</div>
+        <div title="Send Questionnaire">SQ</div>
+        <div title="Receive Completed Questionnaire">RQ</div>
+        <div title="Confirm Lender Contact &amp; Title">LC</div>
+        <div>Close</div>
+      </div>
+
+      <!-- Scrollable matrix -->
+      <div class="matrix" id="matrix"></div>
+
+      <div class="matrix-legend">
+        <span><span class="dot done"></span>Complete</span>
+        <span><span class="dot pend"></span>Pending / not set</span>
+        <span style="margin-left:auto;color:var(--ink-mute)">Hover cell for date</span>
+      </div>
+    </div>
+
+    <!-- DISBURSING ORDERS TASK MATRIX -->
+    <div class="card span-6">
+      <div class="ttl">
+        <h3>Orders disbursing this month — task status</h3>
+        <span class="tag">60 orders · 4 tasks</span>
+      </div>
+
+      <!-- Toggle filters -->
+      <div class="filter-row">
+        <button class="filt active" data-d-filter="all">All <span class="ct">60</span></button>
+        <button class="filt" data-d-filter="pending">Pending only <span class="ct">60</span></button>
+        <button class="filt" data-d-filter="upcoming">Upcoming <span class="ct">22</span></button>
+        <button class="filt" data-d-filter="nikki">Nikki <span class="ct">30</span></button>
+        <button class="filt" data-d-filter="lisa">Lisa <span class="ct">19</span></button>
+        <button class="filt" data-d-filter="jen">Jen <span class="ct">11</span></button>
+      </div>
+
+      <!-- Aggregate completion bar -->
+      <div class="agg-bar">
+        <div class="agg-row">
+          <span class="agg-lbl">Received Payoff</span>
+          <div class="agg-track"><div class="agg-fill" style="width:0%;background:var(--green)"></div></div>
+          <span class="agg-val">0/60 <span class="muted">· 0%</span></span>
+        </div>
+        <div class="agg-row">
+          <span class="agg-lbl">Balance CD</span>
+          <div class="agg-track"><div class="agg-fill" style="width:0%;background:var(--green)"></div></div>
+          <span class="agg-val">0/60 <span class="muted">· 0%</span></span>
+        </div>
+        <div class="agg-row">
+          <span class="agg-lbl">Title Package</span>
+          <div class="agg-track"><div class="agg-fill" style="width:0%;background:var(--green)"></div></div>
+          <span class="agg-val">0/60 <span class="muted">· 0%</span></span>
+        </div>
+        <div class="agg-row">
+          <span class="agg-lbl">Schedule Closing</span>
+          <div class="agg-track"><div class="agg-fill" style="width:0%;background:var(--green)"></div></div>
+          <span class="agg-val">0/60 <span class="muted">· 0%</span></span>
+        </div>
+      </div>
+
+      <!-- Matrix header -->
+      <div class="matrix-head d-head">
+        <div>Order</div>
+        <div>Closer</div>
+        <div title="Received Payoff">PAY</div>
+        <div title="Balance CD with lender">CD</div>
+        <div title="Prepare Title Package">TTL</div>
+        <div title="Schedule and Confirm Closing">SCH</div>
+        <div>Disb</div>
+      </div>
+
+      <!-- Scrollable matrix -->
+      <div class="matrix" id="matrixD"></div>
+
+      <div class="matrix-legend">
+        <span><span class="dot done"></span>Complete</span>
+        <span><span class="dot pend"></span>Pending / not set</span>
+        <span style="margin-left:auto;color:var(--ink-mute)">Hover cell for date</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- FOOTER -->
+<div class="foot-strip">
+  <span>ARES · Settlement Operations Dashboard</span>
+  <span>Sources: Disbursed · Open · Upcoming · Tasks · Overdue</span>
+  <span>Generated 2026-05-20</span>
+</div>
+
+<script>
+/* ===== Data ===== */
+const data = {
+  stateTable: [
+    {s:'FL', c:6,  v:24561.37},
+    {s:'NC', c:18, v:10471.57},
+    {s:'MI', c:3,  v:8338.72},
+    {s:'VA', c:1,  v:4254.78},
+    {s:'MN', c:1,  v:4083.29},
+    {s:'PA', c:1,  v:3276.80},
+    {s:'IN', c:1,  v:2764.79},
+    {s:'CA', c:1,  v:2764.79},
+    {s:'CO', c:1,  v:2764.79},
+    {s:'OH', c:1,  v:2764.79},
+  ],
+  // Map data: state name -> realized revenue (from disbursed orders)
+  // Note: 5 Xome 727 orders ($12,490.83) excluded — no state assignment in source data
+  mapData: {
+    'Florida':5097.50,'North Carolina':5084.84,'Wisconsin':2179.60,
+    'Georgia':2151.39,'Michigan':2097.19,'Ohio':1962.20
+  },
+  tasks: [],
+  groups: [
+    {n:'Paralegal', c:8151},
+    {n:'Order Opener', c:4867},
+    {n:'Post Closing', c:4365},
+    {n:'Accounting', c:2801},
+    {n:'Assistant', c:689},
+    {n:'Recording', c:313},
+  ],
+  aging: [
+    {l:'0-7', c:352, color:'#1D9E75'},
+    {l:'8-30', c:609, color:'#639922'},
+    {l:'31-90', c:1544, color:'#BA7517'},
+    {l:'91-365', c:2270, color:'#D85A30'},
+    {l:'>365', c:17757, color:'#A32D2D'},
+  ]
+};
+
+/* ===== State table ===== */
+(() => {
+  const max = Math.max(...data.stateTable.map(r=>r.v));
+  const fmt = n => '$' + n.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
+  document.getElementById('stateTable').innerHTML = data.stateTable.map(r=>`
+    <tr>
+      <td class="state-cell">${r.s}</td>
+      <td class="num">${r.c}</td>
+      <td class="num bar-cell">${fmt(r.v)}<div class="bar" style="width:${(r.v/max*120)}px"></div></td>
+    </tr>
+  `).join('');
+})();
+
+/* ===== Open Orders Task Matrix ===== */
+(() => {
+  // Each row: order, state, reviewer (short), close date, days to close, then 5 task statuses
+  // Task fields are either null (Not Set) or completion date string
+  // Reviewer: 'Heidi', 'Nikki', 'Heidi+Lisa' (shared), or '' (unassigned)
+  const rows = [
+    {o:'PA-ARES-3367',s:'PA',r:'Heidi',cd:'05/05',d:-15,t:[null,null,null,null,null]},
+    {o:'NC-ARES-3368',s:'NC',r:'Heidi',cd:'05/18',d:-2,t:[null,null,null,null,null]},
+    {o:'NC-ARES-3370',s:'NC',r:'',cd:'05/11',d:-9,t:[null,null,null,null,null]},
+    {o:'NC-ARES-3371',s:'NC',r:'',cd:'05/11',d:-9,t:[null,null,null,null,null]},
+    {o:'NC-ARES-3372',s:'NC',r:'',cd:'05/11',d:-9,t:[null,null,null,null,null]},
+    {o:'NC-ARES-3373',s:'NC',r:'',cd:'05/11',d:-9,t:[null,null,null,null,null]},
+    {o:'NC-ARES-3374',s:'NC',r:'',cd:'05/11',d:-9,t:[null,null,null,null,null]},
+    {o:'NC-ARES-3375',s:'NC',r:'',cd:'05/11',d:-9,t:[null,null,null,null,null]},
+    {o:'NC-ARES-3376',s:'NC',r:'',cd:'05/11',d:-9,t:[null,null,null,null,null]},
+    {o:'FL-ARES-3377',s:'FL',r:'Heidi+Lisa',cd:'05/07',d:-13,t:[null,null,null,null,null]},
+    {o:'NC-ARES-3378',s:'NC',r:'Heidi',cd:'05/07',d:-13,t:[null,null,null,null,null]},
+    {o:'MO-ARES-3379',s:'MO',r:'Heidi',cd:'05/07',d:-13,t:[null,null,null,null,null]},
+    {o:'NC-ARES-3381',s:'NC',r:'',cd:'05/12',d:-8,t:[null,null,null,null,null]},
+    {o:'NC-ARES-3382',s:'NC',r:'',cd:'05/12',d:-8,t:[null,null,null,null,null]},
+    {o:'NC-ARES-3383',s:'NC',r:'',cd:'05/12',d:-8,t:[null,null,null,null,null]},
+    {o:'NC-ARES-3384',s:'NC',r:'',cd:'05/12',d:-8,t:[null,null,null,null,null]},
+    {o:'727-XOME-3385',s:'MI',r:'Nikki',cd:'05/26',d:6,t:['05/08/2026',null,null,null,null]},
+    {o:'NC-ARES-3386',s:'NC',r:'',cd:'05/13',d:-7,t:[null,null,null,null,null]},
+    {o:'NC-ARES-3387',s:'NC',r:'',cd:'05/13',d:-7,t:[null,null,null,null,null]},
+    {o:'NC-ARES-3388',s:'NC',r:'',cd:'05/13',d:-7,t:[null,null,null,null,null]},
+    {o:'FL-ARES-3389',s:'FL',r:'Heidi',cd:'05/08',d:-12,t:[null,null,null,null,null]},
+    {o:'FL-ARES-3390',s:'FL',r:'Heidi',cd:'05/12',d:-8,t:[null,null,null,null,null]},
+    {o:'727-XOME-3391',s:'TX',r:'',cd:'05/27',d:7,t:[null,null,null,null,null]},
+    {o:'NC-ARES-3392',s:'NC',r:'',cd:'05/11',d:-9,t:[null,null,null,null,null]},
+    {o:'FL-ARES-3394',s:'FL',r:'Heidi',cd:'05/13',d:-7,t:[null,null,null,null,null]},
+    {o:'FL-ARES-3395',s:'FL',r:'Heidi',cd:'05/13',d:-7,t:[null,null,null,null,null]},
+    {o:'727-XOME-3397',s:'IL',r:'Nikki',cd:'06/12',d:23,t:[null,null,null,null,null]},
+    {o:'727-XOME-3398',s:'MI',r:'Nikki',cd:'06/02',d:13,t:['05/15/2026',null,null,null,null]},
+    {o:'727-XOME-3399',s:'IN',r:'Nikki',cd:'05/28',d:8,t:['05/15/2026',null,null,null,null]},
+    {o:'FL-ARES-3400',s:'FL',r:'Heidi',cd:'05/15',d:-5,t:[null,null,null,null,null]},
+    {o:'727-XOME-3401',s:'AL',r:'Nikki',cd:'06/11',d:22,t:[null,null,null,null,null]},
+    {o:'727-XOME-3402',s:'MN',r:'Nikki',cd:'06/02',d:13,t:['05/14/2026',null,null,null,null]},
+    {o:'727-XOME-3403',s:'NC',r:'Nikki',cd:'06/12',d:23,t:[null,null,null,null,null]},
+    {o:'727-XOME-3404',s:'TX',r:'',cd:'06/12',d:23,t:[null,null,null,null,null]},
+    {o:'SC-ARES-3405',s:'SC',r:'Heidi',cd:'05/18',d:-2,t:[null,null,null,null,null]},
+    {o:'VA-ARES-3406',s:'VA',r:'Heidi',cd:'05/25',d:5,t:[null,null,null,null,null]},
+    {o:'727-XOME-3409',s:'CO',r:'Nikki',cd:'06/03',d:14,t:['05/19/2026',null,null,null,null]},
+    {o:'NC-ARES-3410',s:'NC',r:'',cd:'05/20',d:0,t:[null,null,null,null,null]},
+    {o:'727-XOME-3411',s:'CA',r:'Nikki',cd:'06/03',d:14,t:[null,null,null,null,null]},
+    {o:'GA-ARES-3412',s:'GA',r:'Heidi',cd:'05/20',d:0,t:[null,null,null,null,null]},
+    {o:'FL-ARES-3413',s:'FL',r:'Heidi',cd:'05/20',d:0,t:[null,null,null,null,null]},
+    {o:'727-XOME-3414',s:'OH',r:'Nikki',cd:'06/19',d:30,t:['05/20/2026',null,null,null,null]},
+    {o:'727-XOME-3415',s:'MI',r:'Nikki',cd:'06/18',d:29,t:['05/20/2026',null,null,null,null]},
+    {o:'727-XOME-3416',s:'TX',r:'',cd:'06/15',d:26,t:[null,null,null,null,null]},
+  ];
+
+  const taskNames = ['EMD Receipt Upload','Title Order Confirm','Send Questionnaire','Receive Questionnaire','Lender Contact / Title'];
+
+  // Sort: past due first (most overdue first), then by closing date
+  rows.sort((a,b) => a.d - b.d);
+
+  // Update filter counts
+  const pendingCount = rows.filter(r => r.t.every(x => !x)).length;
+  const anyDoneCount = rows.filter(r => r.t.some(x => !!x)).length;
+  const pastCount = rows.filter(r => r.d < 0).length;
+  document.getElementById('ctPending').textContent = pendingCount;
+  document.getElementById('ctAny').textContent = anyDoneCount;
+  document.getElementById('ctPast').textContent = pastCount;
+
+  const closeClass = d => d < 0 ? 'past' : d <= 7 ? 'soon' : 'ok';
+  const closeLabel = d => d < 0 ? Math.abs(d)+'d late' : d === 0 ? 'today' : '+'+d+'d';
+
+  // Build matrix
+  const matrix = document.getElementById('matrix');
+  matrix.innerHTML = rows.map(r => {
+    const cells = r.t.map((status, i) => {
+      if (status) {
+        return `<div class="mx-cell done" data-task="${taskNames[i]}" data-date="${status}"><span class="icon">✓</span></div>`;
+      }
+      return `<div class="mx-cell pend" data-task="${taskNames[i]}" data-date=""><span class="icon">—</span></div>`;
+    }).join('');
+    const hasAnyDone = r.t.some(x => !!x);
+    const allPending = r.t.every(x => !x);
+    const reviewerDisplay = r.r === '' ? '—' : r.r;
+    const reviewerClass = r.r === '' ? 'mx-closer unassigned' : 'mx-closer';
+    return `<div class="matrix-row o-row" data-pending="${allPending}" data-anydone="${hasAnyDone}" data-past="${r.d<0}" data-reviewer="${r.r}">
+      <div class="mx-ord"><span class="mx-st">${r.s}</span>${r.o.replace(/^727-/,'')}</div>
+      <div class="${reviewerClass}">${reviewerDisplay}</div>
+      ${cells}
+      <div class="mx-close ${closeClass(r.d)}">${closeLabel(r.d)}</div>
+    </div>`;
+  }).join('');
+
+  // Tooltip handler
+  const tip = document.createElement('div');
+  tip.className = 'mx-tip';
+  document.body.appendChild(tip);
+  matrix.addEventListener('mouseover', e => {
+    const cell = e.target.closest('.mx-cell');
+    if (!cell) return;
+    const task = cell.dataset.task;
+    const date = cell.dataset.date;
+    tip.innerHTML = `<b>${task}</b>${date ? 'Completed '+date : 'Not set / pending'}`;
+    tip.style.display = 'block';
+  });
+  matrix.addEventListener('mousemove', e => {
+    if (tip.style.display !== 'block') return;
+    tip.style.left = (e.clientX + 14) + 'px';
+    tip.style.top = (e.clientY + 14) + 'px';
+  });
+  matrix.addEventListener('mouseout', e => {
+    if (e.target.closest('.mx-cell')) tip.style.display = 'none';
+  });
+
+  // Filter buttons
+  document.querySelectorAll('.filt[data-filter]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.filt[data-filter]').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      const f = btn.dataset.filter;
+      document.querySelectorAll('.matrix-row[data-pending]').forEach(row => {
+        let show = true;
+        if (f === 'pending') show = row.dataset.pending === 'true';
+        else if (f === 'any-done') show = row.dataset.anydone === 'true';
+        else if (f === 'past-due') show = row.dataset.past === 'true';
+        else if (f === 'heidi') show = row.dataset.reviewer.includes('Heidi');
+        else if (f === 'nikki') show = row.dataset.reviewer === 'Nikki';
+        else if (f === 'unassigned') show = row.dataset.reviewer === '';
+        row.classList.toggle('hidden', !show);
+      });
+    });
+  });
+})();
+
+/* ===== Disbursing Orders Task Matrix ===== */
+(() => {
+  // Each row: order, state, closer (short), disbursement date, days to disb, then 4 task statuses
+  // All currently null (N/A) per source data
+  const rows = [
+    {o:'FL-ARES-3335',s:'FL',c:'Lisa',cd:'05/04',d:-16,t:[null,null,null,null]},
+    {o:'727-REFI-3352',s:'MI',c:'Nikki',cd:'05/04',d:-16,t:[null,null,null,null]},
+    {o:'MD-ARES-3357',s:'MD',c:'Jen',cd:'05/04',d:-16,t:[null,null,null,null]},
+    {o:'727-REFI-3128',s:'GA',c:'Nikki',cd:'05/06',d:-14,t:[null,null,null,null]},
+    {o:'FL-ARES-3363',s:'FL',c:'Lisa',cd:'05/08',d:-12,t:[null,null,null,null]},
+    {o:'FL-ARES-3362',s:'FL',c:'Lisa',cd:'05/08',d:-12,t:[null,null,null,null]},
+    {o:'FL-ARES-3364',s:'FL',c:'Jen',cd:'05/08',d:-12,t:[null,null,null,null]},
+    {o:'TN-ARES-3320',s:'TN',c:'Lisa',cd:'05/11',d:-9,t:[null,null,null,null]},
+    {o:'PA-ARES-3367',s:'PA',c:'Jen',cd:'05/11',d:-9,t:[null,null,null,null]},
+    {o:'NC-ARES-3370',s:'NC',c:'Nikki',cd:'05/11',d:-9,t:[null,null,null,null]},
+    {o:'NC-ARES-3371',s:'NC',c:'Nikki',cd:'05/11',d:-9,t:[null,null,null,null]},
+    {o:'NC-ARES-3372',s:'NC',c:'Nikki',cd:'05/11',d:-9,t:[null,null,null,null]},
+    {o:'NC-ARES-3373',s:'NC',c:'Nikki',cd:'05/11',d:-9,t:[null,null,null,null]},
+    {o:'NC-ARES-3374',s:'NC',c:'Nikki',cd:'05/11',d:-9,t:[null,null,null,null]},
+    {o:'NC-ARES-3375',s:'NC',c:'Nikki',cd:'05/11',d:-9,t:[null,null,null,null]},
+    {o:'NC-ARES-3376',s:'NC',c:'Nikki',cd:'05/11',d:-9,t:[null,null,null,null]},
+    {o:'NC-ARES-3392',s:'NC',c:'Nikki',cd:'05/11',d:-9,t:[null,null,null,null]},
+    {o:'FL-ARES-3377',s:'FL',c:'Lisa',cd:'05/12',d:-8,t:[null,null,null,null]},
+    {o:'NC-ARES-3378',s:'NC',c:'Jen',cd:'05/12',d:-8,t:[null,null,null,null]},
+    {o:'MO-ARES-3379',s:'MO',c:'Lisa',cd:'05/12',d:-8,t:[null,null,null,null]},
+    {o:'NC-ARES-3381',s:'NC',c:'Nikki',cd:'05/12',d:-8,t:[null,null,null,null]},
+    {o:'NC-ARES-3382',s:'NC',c:'Nikki',cd:'05/12',d:-8,t:[null,null,null,null]},
+    {o:'NC-ARES-3383',s:'NC',c:'Nikki',cd:'05/12',d:-8,t:[null,null,null,null]},
+    {o:'NC-ARES-3384',s:'NC',c:'Nikki',cd:'05/12',d:-8,t:[null,null,null,null]},
+    {o:'MI-ARES-3275',s:'MI',c:'Lisa',cd:'05/13',d:-7,t:[null,null,null,null]},
+    {o:'NC-ARES-3386',s:'NC',c:'Nikki',cd:'05/13',d:-7,t:[null,null,null,null]},
+    {o:'NC-ARES-3387',s:'NC',c:'Nikki',cd:'05/13',d:-7,t:[null,null,null,null]},
+    {o:'NC-ARES-3388',s:'NC',c:'Nikki',cd:'05/13',d:-7,t:[null,null,null,null]},
+    {o:'FL-ARES-3389',s:'FL',c:'Jen',cd:'05/13',d:-7,t:[null,null,null,null]},
+    {o:'FL-ARES-3395',s:'FL',c:'Lisa',cd:'05/13',d:-7,t:[null,null,null,null]},
+    {o:'727-XOME-3344',s:'MO',c:'Nikki',cd:'05/14',d:-6,t:[null,null,null,null]},
+    {o:'NC-ARES-3355',s:'NC',c:'Jen',cd:'05/14',d:-6,t:[null,null,null,null]},
+    {o:'TN-ARES-3122',s:'TN',c:'Lisa',cd:'05/15',d:-5,t:[null,null,null,null]},
+    {o:'WI-ARES-3350',s:'WI',c:'Lisa',cd:'05/15',d:-5,t:[null,null,null,null]},
+    {o:'727-XOME-3360',s:'TN',c:'Nikki',cd:'05/18',d:-2,t:[null,null,null,null]},
+    {o:'FL-ARES-3390',s:'FL',c:'Lisa',cd:'05/18',d:-2,t:[null,null,null,null]},
+    {o:'FL-ARES-3394',s:'FL',c:'Jen',cd:'05/18',d:-2,t:[null,null,null,null]},
+    {o:'FL-ARES-3281',s:'FL',c:'Lisa',cd:'05/19',d:-1,t:[null,null,null,null]},
+    {o:'FL-ARES-3076',s:'FL',c:'Lisa',cd:'05/20',d:0,t:[null,null,null,null]},
+    {o:'FL-ARES-3400',s:'FL',c:'Lisa',cd:'05/20',d:0,t:[null,null,null,null]},
+    {o:'NC-ARES-3316',s:'NC',c:'Lisa',cd:'05/22',d:2,t:[null,null,null,null]},
+    {o:'NC-ARES-3368',s:'NC',c:'Jen',cd:'05/22',d:2,t:[null,null,null,null]},
+    {o:'SC-ARES-3405',s:'SC',c:'Lisa',cd:'05/22',d:2,t:[null,null,null,null]},
+    {o:'727-XOME-3323',s:'IL',c:'Nikki',cd:'05/25',d:5,t:[null,null,null,null]},
+    {o:'727-XOME-3365',s:'IL',c:'Nikki',cd:'05/25',d:5,t:[null,null,null,null]},
+    {o:'727-XOME-3366',s:'NM',c:'Nikki',cd:'05/25',d:5,t:[null,null,null,null]},
+    {o:'727-XOME-3358',s:'IN',c:'Nikki',cd:'05/26',d:6,t:[null,null,null,null]},
+    {o:'727-XOME-3385',s:'MI',c:'Nikki',cd:'05/26',d:6,t:[null,null,null,null]},
+    {o:'NC-ARES-3410',s:'NC',c:'Jen',cd:'05/26',d:6,t:[null,null,null,null]},
+    {o:'GA-ARES-3412',s:'GA',c:'Jen',cd:'05/26',d:6,t:[null,null,null,null]},
+    {o:'FL-ARES-3413',s:'FL',c:'Lisa',cd:'05/26',d:6,t:[null,null,null,null]},
+    {o:'FL-ARES-3192',s:'FL',c:'Lisa',cd:'05/27',d:7,t:[null,null,null,null]},
+    {o:'727-XOME-3278',s:'IL',c:'Nikki',cd:'05/27',d:7,t:[null,null,null,null]},
+    {o:'SC-ARES-3285',s:'SC',c:'Lisa',cd:'05/27',d:7,t:[null,null,null,null]},
+    {o:'727-XOME-3338',s:'TX',c:'Nikki',cd:'05/27',d:7,t:[null,null,null,null]},
+    {o:'727-XOME-3391',s:'TX',c:'Nikki',cd:'05/27',d:7,t:[null,null,null,null]},
+    {o:'727-XOME-3186',s:'IL',c:'Nikki',cd:'05/28',d:8,t:[null,null,null,null]},
+    {o:'727-XOME-3361',s:'TX',c:'Nikki',cd:'05/28',d:8,t:[null,null,null,null]},
+    {o:'727-XOME-3399',s:'IN',c:'Nikki',cd:'05/28',d:8,t:[null,null,null,null]},
+    {o:'VA-ARES-3406',s:'VA',c:'Jen',cd:'05/29',d:9,t:[null,null,null,null]},
+  ];
+
+  const taskNames = ['Received Payoff','Balance CD with lender','Prepare Title Package','Schedule and Confirm Closing'];
+
+  // Sort: most past first, then upcoming
+  rows.sort((a,b) => a.d - b.d);
+
+  const dateClass = d => d < 0 ? 'past' : d <= 3 ? 'soon' : 'ok';
+  const dateLabel = d => d < 0 ? Math.abs(d)+'d ago' : d === 0 ? 'today' : '+'+d+'d';
+
+  // Build matrix
+  const matrix = document.getElementById('matrixD');
+  matrix.innerHTML = rows.map(r => {
+    const cells = r.t.map((status, i) => {
+      if (status) {
+        return `<div class="mx-cell done" data-task="${taskNames[i]}" data-date="${status}"><span class="icon">✓</span></div>`;
+      }
+      return `<div class="mx-cell pend" data-task="${taskNames[i]}" data-date=""><span class="icon">—</span></div>`;
+    }).join('');
+    const hasAnyDone = r.t.some(x => !!x);
+    const allPending = r.t.every(x => !x);
+    return `<div class="matrix-row d-row" data-d-pending="${allPending}" data-d-anydone="${hasAnyDone}" data-d-upcoming="${r.d>=0}" data-d-closer="${r.c}">
+      <div class="mx-ord"><span class="mx-st">${r.s}</span>${r.o.replace(/^727-/,'')}</div>
+      <div class="mx-closer">${r.c}</div>
+      ${cells}
+      <div class="mx-close ${dateClass(r.d)}">${dateLabel(r.d)}</div>
+    </div>`;
+  }).join('');
+
+  // Tooltip handler (reuse the same tip element from open orders matrix)
+  const tip = document.querySelector('.mx-tip');
+  matrix.addEventListener('mouseover', e => {
+    const cell = e.target.closest('.mx-cell');
+    if (!cell) return;
+    const task = cell.dataset.task;
+    const date = cell.dataset.date;
+    tip.innerHTML = `<b>${task}</b>${date ? 'Completed '+date : 'Not set / pending'}`;
+    tip.style.display = 'block';
+  });
+  matrix.addEventListener('mousemove', e => {
+    if (tip.style.display !== 'block') return;
+    tip.style.left = (e.clientX + 14) + 'px';
+    tip.style.top = (e.clientY + 14) + 'px';
+  });
+  matrix.addEventListener('mouseout', e => {
+    if (e.target.closest('.mx-cell')) tip.style.display = 'none';
+  });
+
+  // Filter buttons for disbursing matrix
+  document.querySelectorAll('.filt[data-d-filter]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.filt[data-d-filter]').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      const f = btn.dataset.dFilter;
+      document.querySelectorAll('.matrix-row[data-d-pending]').forEach(row => {
+        let show = true;
+        if (f === 'pending') show = row.dataset.dPending === 'true';
+        else if (f === 'upcoming') show = row.dataset.dUpcoming === 'true';
+        else if (f === 'nikki') show = row.dataset.dCloser === 'Nikki';
+        else if (f === 'lisa') show = row.dataset.dCloser === 'Lisa';
+        else if (f === 'jen') show = row.dataset.dCloser === 'Jen';
+        row.classList.toggle('hidden', !show);
+      });
+    });
+  });
+})();
+
+/* ===== Group bars (removed — replaced by disbursing matrix) ===== */
+
+/* ===== Aging strip (removed — replaced by snapshot panel) ===== */
+
+/* ===== Revenue chart (Chart.js) ===== */
+(() => {
+  new Chart(document.getElementById('revenueChart'), {
+    type: 'bar',
+    data: {
+      labels: ['Realized', 'Upcoming'],
+      datasets: [
+        {label:'Purchase', data:[15011, 35934], backgroundColor:'#1D9E75', borderWidth:0, borderRadius:2, barThickness:64},
+        {label:'Refinance', data:[16053, 31215], backgroundColor:'#378ADD', borderWidth:0, borderRadius:2, barThickness:64},
+        {label:'Reverse', data:[0, 3095], backgroundColor:'#BA7517', borderWidth:0, borderRadius:2, barThickness:64},
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins:{
+        legend:{display:true, position:'bottom', labels:{color:'#666', font:{size:11}, boxWidth:10, boxHeight:10, padding:14}},
+        tooltip:{backgroundColor:'#fff', borderColor:'#378ADD', borderWidth:1, titleColor:'#378ADD', bodyColor:'#1a1a1a', padding:10, cornerRadius:6, callbacks:{label:c=>` ${c.dataset.label}: $${c.parsed.y.toLocaleString()}`}}
+      },
+      scales:{
+        x:{stacked:true, ticks:{color:'#666', font:{size:11}}, grid:{display:false}, border:{color:'#ececec'}},
+        y:{stacked:true, ticks:{color:'#888', font:{size:10}, callback:v=>'$'+(v/1000)+'K'}, grid:{color:'#f0f0f0'}, border:{display:false}}
+      }
+    }
+  });
+})();
+
+/* ===== US Map (D3 choropleth) — reusable ===== */
+function renderChoropleth(opts) {
+  const mapEl = document.getElementById(opts.elId);
+  const tip = document.createElement('div');
+  tip.className = 'tip';
+  mapEl.appendChild(tip);
+
+  const values = opts.values;
+  const svg = d3.select('#' + opts.elId).append('svg')
+    .attr('viewBox', '0 0 900 500')
+    .attr('width', '100%')
+    .attr('height', '100%');
+
+  const colorScale = d3.scaleThreshold()
+    .domain(opts.domain)
+    .range(opts.range);
+
+  const path = d3.geoPath(d3.geoAlbersUsa().scale(1050).translate([450, 250]));
+
+  d3.json('https://cdn.jsdelivr.net/npm/us-atlas@3/states-10m.json').then(us => {
+    const states = topojson.feature(us, us.objects.states).features;
+    svg.append('g')
+      .selectAll('path')
+      .data(states)
+      .join('path')
+      .attr('d', path)
+      .attr('fill', d => colorScale(values[d.properties.name] || 0))
+      .attr('stroke', '#ffffff')
+      .attr('stroke-width', 0.8)
+      .style('cursor', 'pointer')
+      .on('mousemove', (e, d) => {
+        const v = values[d.properties.name] || 0;
+        const rect = mapEl.getBoundingClientRect();
+        const display = v > 0
+          ? '$' + v.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' ' + opts.suffix
+          : opts.noneLabel;
+        tip.innerHTML = `<strong>${d.properties.name}</strong>${display}`;
+        tip.style.left = (e.clientX - rect.left + 12) + 'px';
+        tip.style.top = (e.clientY - rect.top + 12) + 'px';
+        tip.style.opacity = 1;
+      })
+      .on('mouseout', () => tip.style.opacity = 0);
+
+    // Labels for top states
+    const labelStates = opts.labels || [];
+    if (labelStates.length) {
+      const abbr = opts.abbr || {};
+      svg.append('g')
+        .selectAll('text')
+        .data(states.filter(d => labelStates.includes(d.properties.name)))
+        .join('text')
+        .attr('transform', d => `translate(${path.centroid(d)})`)
+        .attr('text-anchor', 'middle')
+        .attr('font-family', 'Helvetica, Arial, sans-serif')
+        .attr('font-size', 9)
+        .attr('font-weight', 600)
+        .attr('fill', '#ffffff')
+        .attr('letter-spacing', 0.5)
+        .text(d => abbr[d.properties.name] || '');
+    }
+  });
+}
+
+/* Realized revenue map — blue scale */
+renderChoropleth({
+  elId: 'map',
+  values: data.mapData,
+  domain: [1, 1500, 2200, 3500, 4500],
+  range: ['#f0f0f0', '#E6F1FB', '#B5D4F4', '#85B7EB', '#378ADD', '#185FA5'],
+  suffix: 'realized',
+  noneLabel: 'No realized revenue',
+  labels: ['Florida','North Carolina'],
+  abbr: {'Florida':'FL','North Carolina':'NC'}
+});
+
+/* Upcoming revenue map — green scale */
+const upcomingMapData = {
+  'Florida':24561.37,'North Carolina':10471.57,'Michigan':8338.72,
+  'Virginia':4254.78,'Minnesota':4083.29,'Pennsylvania':3276.80,
+  'Indiana':2764.79,'California':2764.79,'Colorado':2764.79,'Ohio':2764.79,
+  'Missouri':1783.32,'Illinois':1235.00,'Alabama':1180.00
+};
+renderChoropleth({
+  elId: 'mapUpcoming',
+  values: upcomingMapData,
+  domain: [1, 2000, 4500, 8500, 15000],
+  range: ['#f0f0f0', '#EAF3DE', '#C0DD97', '#97C459', '#3B6D11', '#173404'],
+  suffix: 'upcoming',
+  noneLabel: 'No upcoming revenue',
+  labels: ['Florida','North Carolina','Michigan'],
+  abbr: {'Florida':'FL','North Carolina':'NC','Michigan':'MI'}
+});
+</script>
+
+</body>
+</html>
